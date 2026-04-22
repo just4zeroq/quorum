@@ -19,7 +19,8 @@
 
 | 主题 | 数据类型 | 说明 |
 |------|----------|------|
-| market:{market_id}:status | MarketStatus | 市场状态变更 |
+| market:{market_id}:status | MarketStatus | 市场状态变更 (开放/关闭/结算) |
+| market:{market_id}:settlement | Settlement | 结算派彩结果 |
 
 ## 3. 消息格式
 
@@ -31,6 +32,20 @@
   "data": {
     "status": "resolved",
     "winning_outcome_id": 2,
+    "winning_outcome_asset": "12345_yes",
+    "resolved_at": 1776809545000
+  }
+}
+
+// Settlement
+{
+  "type": "settlement",
+  "market_id": 1,
+  "data": {
+    "winning_outcome_id": 2,
+    "winning_outcome_asset": "12345_yes",
+    "total_payout": "150000",
+    "payout_count": 42,
     "resolved_at": 1776809545000
   }
 }
@@ -41,6 +56,7 @@
 | Topic | 数据源 |
 |-------|--------|
 | market_events | Prediction Market Service |
+| settlement_events | Clearing Service |
 
 ## 5. 配置
 

@@ -192,40 +192,6 @@ message UpdateRiskConfigResponse {
 }
 ```
 
-message CheckOrderRequest {
-    int64 user_id = 1;
-    int64 market_id = 2;
-    string asset = 3;
-    string amount = 4;
-}
-
-message CheckOrderResponse {
-    bool pass = 1;
-    string reason = 2;
-}
-
-message CheckWithdrawRequest {
-    int64 user_id = 1;
-    string asset = 2;
-    string amount = 3;
-}
-
-message CheckWithdrawResponse {
-    bool pass = 1;
-    string reason = 2;
-}
-
-message CheckUserStatusRequest {
-    int64 user_id = 1;
-}
-
-message CheckUserStatusResponse {
-    bool pass = 1;
-    string status = 2;
-    string reason = 3;
-}
-```
-
 ## 3. 风控规则
 
 ### 3.1 下单风控规则

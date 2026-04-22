@@ -17,9 +17,11 @@
 
 ## 2. 订阅主题
 
+> ⚠️ 必须认证：连接时需携带 Token，只能订阅自己的订单。
+
 | 主题 | 数据类型 | 说明 |
 |------|----------|------|
-| orders:{user_id} | OrderUpdate | 用户订单状态变更 |
+| orders:{user_id} | OrderUpdate | 用户订单状态变更 (仅限本人) |
 
 ## 3. 消息格式
 
@@ -30,6 +32,9 @@
   "user_id": 1001,
   "data": {
     "order_id": "o123",
+    "market_id": 1,
+    "outcome_id": 2,
+    "outcome_asset": "12345_yes",
     "status": "filled",
     "side": "buy",
     "price": "0.52",

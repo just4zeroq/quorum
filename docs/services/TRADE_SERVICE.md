@@ -30,6 +30,7 @@
 | counter_order_id | VARCHAR(64) | | 对手订单ID |
 | market_id | BIGINT | NOT NULL | 市场ID |
 | outcome_id | BIGINT | NOT NULL | 选项ID |
+| outcome_asset | VARCHAR(32) | NOT NULL | 结果代币标识 |
 | maker_user_id | BIGINT | NOT NULL | Maker用户 |
 | taker_user_id | BIGINT | NOT NULL | Taker用户 |
 | side | VARCHAR(10) | NOT NULL | Taker方向 |
@@ -71,15 +72,16 @@ message GetTradeResponse {
     string order_id = 2;
     int64 market_id = 3;
     int64 outcome_id = 4;
-    int64 maker_user_id = 5;
-    int64 taker_user_id = 6;
-    string side = 7;
-    string price = 8;
-    string quantity = 9;
-    string amount = 10;
-    string maker_fee = 11;
-    string taker_fee = 12;
-    int64 timestamp = 13;
+    string outcome_asset = 5;       // 结果代币标识
+    int64 maker_user_id = 6;
+    int64 taker_user_id = 7;
+    string side = 8;
+    string price = 9;
+    string quantity = 10;
+    string amount = 11;
+    string maker_fee = 12;
+    string taker_fee = 13;
+    int64 timestamp = 14;
 }
 
 message GetUserTradesRequest {
@@ -127,6 +129,11 @@ service:
 database:
   driver: "sqlite"
   url: "sqlite:./data/trades.db"
+kafka:
+  brokers:
+    - "localhost:9092"
+  topics:
+    trade_executed: "trade_executed"
 ```
 
 ## 6. 目录结构

@@ -15,6 +15,8 @@
 |------|------|
 | 订单对账 | 订单与成交一致性 |
 | 余额对账 | 账本与账户余额一致性 |
+| 持仓对账 | 持仓与账户结果代币余额一致性 |
+| 结算对账 | 结算派彩总额与资金流一致性 |
 | 定时对账 | 定时任务对账 |
 
 ## 2. 数据模型
@@ -65,7 +67,7 @@ service ReconciliationService {
 }
 
 message RunReconciliationRequest {
-    string task_type = 1;
+    string task_type = 1;  // "order", "balance", "position", "settlement"
 }
 
 message RunReconciliationResponse {
@@ -130,6 +132,21 @@ service:
 database:
   driver: "sqlite"
   url: "sqlite:./data/reconciliation.db"
+
+account_service:
+  addr: "localhost:50019"
+position_service:
+  addr: "localhost:50005"
+order_service:
+  addr: "localhost:50003"
+trade_service:
+  addr: "localhost:50013"
+
+kafka:
+  brokers:
+    - "localhost:9092"
+  topics:
+    settlement_events: "settlement_events"
 
 reconciliation:
   # 对账任务间隔 (秒)

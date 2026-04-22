@@ -34,11 +34,9 @@ Prediction Market Service
 │   ├── UpdateOutcome - 更新选项
 │   └── GetOutcomes - 获取选项列表
 ├── 结算
-│   ├── ResolveMarket - 结算市场
-│   ├── CalculatePayout - 计算派彩
+│   ├── ResolveMarket - 结算市场 (内部调用 Clearing Service.SettleMarket)
+│   ├── CalculatePayout - 计算派彩 (委托 Clearing Service)
 │   └── GetResolutions - 结算记录
-└── 内部服务
-    └── CreateMarketOnEngine - 在撮合引擎创建市场
 ```
 
 ## 2. 数据模型
@@ -76,6 +74,7 @@ pub struct PredictionMarket {
 pub struct MarketOutcome {
     pub id: i64,
     pub market_id: i64,
+    pub outcome_asset: String,         // 结果代币标识 (如 "12345_yes")
     pub name: String,
     pub description: Option<String>,
     pub image_url: Option<String>,
@@ -155,6 +154,7 @@ pub enum PredictionMarketEvent {
 |------|------|------|------|
 | id | BIGSERIAL | PRIMARY KEY | 选项ID |
 | market_id | BIGINT | NOT NULL, FK | 市场ID |
+| outcome_asset | VARCHAR(32) | NOT NULL | 结果代币标识 (如 "12345_yes") |
 | name | VARCHAR(100) | NOT NULL | 选项名称 |
 | description | TEXT | | 描述 |
 | image_url | TEXT | | 图片URL |
@@ -344,11 +344,12 @@ message GetOutcomesResponse {
 message OutcomeSummary {
     int64 outcome_id = 1;
     int64 market_id = 2;
-    string name = 3;
-    string description = 4;
-    string price = 5;
-    string volume = 6;
-    string probability = 7;
+    string outcome_asset = 3;        // 结果代币标识
+    string name = 4;
+    string description = 5;
+    string price = 6;
+    string volume = 7;
+    string probability = 8;
 }
 
 // ==================== 结算 ====================
@@ -356,6 +357,8 @@ message OutcomeSummary {
 message ResolveMarketRequest {
     int64 market_id = 1;
     int64 outcome_id = 2;
+    string reason = 3;               // 结算原因，必须留痕
+    int64 resolver_id = 4;           // 结算操作人ID
 }
 
 message ResolveMarketResponse {
@@ -519,28 +522,21 @@ ResolveMarket 请求
                   │
                   ▼
 ┌─────────────────────────────────────────┐
-│ 3. 计算派彩 (⚠️ 修正计算逻辑)             │
-│    - 统计所有选项的 volume               │
-│    - 正确逻辑:                           │
-│      输家资金 = sum(输家持仓 * 买入价格)  │
-│      赢家总收益 = 输家资金 * (1 - 手续费) │
-│      每用户派彩 = 赢家持仓 / 赢家总持仓 * │
-│                   赢家总收益              │
-│    ❌ 错误逻辑: payout_ratio = 1/(1+sum) │
-└─────────────────┬───────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────┐
-│ 4. 调用 Clearing Service 执行派彩        │
+│ 3. 调用 Clearing Service 执行派彩        │
 │    - SettleMarket (同步)                │
-│    ⚠️ 必须调用，否则资金不落地            │
 │    - 传递: market_id, winning_outcome_id │
-│    - Clearing Service 完成实际资金分配   │
+│    - Clearing Service 负责:             │
+│      a. 查询持仓 (Position Service)     │
+│      b. 计算输家资金和赢家派彩           │
+│      c. 执行资产兑换 (Account Service)   │
+│      d. 清零持仓 (Position Service)     │
+│    ⚠️ PM Service 不自行计算派彩，由      │
+│       Clearing Service 统一处理          │
 └─────────────────┬───────────────────────┘
                   │
                   ▼
 ┌─────────────────────────────────────────┐
-│ 5. 更新市场状态                          │
+│ 4. 更新市场状态                          │
 │    - status = Resolved                  │
 │    - resolved_outcome_id                │
 │    - resolved_at = now                  │
@@ -548,19 +544,19 @@ ResolveMarket 请求
                   │
                   ▼
 ┌─────────────────────────────────────────┐
-│ 6. 保存结算记录                          │
+│ 5. 保存结算记录                          │
 │    - market_resolutions 表              │
 └─────────────────┬───────────────────────┘
                   │
                   ▼
 ┌─────────────────────────────────────────┐
-│ 7. 调用 Matching Engine 关闭订单簿         │
+│ 6. 调用 Matching Engine 关闭订单簿         │
 │    - CloseMarket                       │
 └─────────────────┬───────────────────────┘
                   │
                   ▼
 ┌─────────────────────────────────────────┐
-│ 8. 发布 Kafka 事件                       │
+│ 7. 发布 Kafka 事件                       │
 │    - MarketResolved                   │
 └─────────────────┬───────────────────────┘
                   │

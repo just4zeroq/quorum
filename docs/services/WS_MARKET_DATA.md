@@ -22,10 +22,10 @@
 
 | 主题 | 数据类型 | 说明 |
 |------|----------|------|
-| kline:{market_id}:{interval} | Kline | K线数据 |
-| trades:{market_id} | Trade | 实时成交 |
-| depth:{market_id} | OrderBook | 订单簿深度 |
-| ticker:{market_id} | Ticker | 24h统计 |
+| kline:{market_id}:{outcome_id}:{interval} | Kline | K线数据 (按选项) |
+| trades:{market_id}:{outcome_id} | Trade | 实时成交 (按选项) |
+| depth:{market_id}:{outcome_id} | OrderBook | 订单簿深度 (按选项) |
+| ticker:{market_id} | Ticker | 24h统计 (市场级) |
 
 ## 3. 消息格式
 
