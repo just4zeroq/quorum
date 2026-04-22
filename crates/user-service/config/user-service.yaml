@@ -1,0 +1,43 @@
+# User Service 配置
+# 默认使用 SQLite (开发/测试环境)
+# 生产环境可切换为 PostgreSQL
+
+service:
+  name: user-service
+  port: 50001
+
+# 数据库配置
+# 默认使用 SQLite (文件存储)
+db:
+  db_type: sqlite          # sqlite / postgres
+  file_path: data/user-service.db  # SQLite 文件路径
+  # PostgreSQL 配置 (db_type 为 postgres 时生效)
+  # host: localhost
+  # port: 5432
+  # user: postgres
+  # password: postgres
+  # database: cex_dex
+  max_connections: 10
+
+# Redis 缓存配置 (可选)
+cache:
+  host: localhost
+  port: 6379
+  db: 0
+  pool_size: 10
+
+# JWT 配置
+jwt:
+  secret: "change-this-secret-in-production"
+  expires: 604800      # 7天 (秒)
+  refresh_expires: 2592000  # 30天 (秒)
+
+# 安全配置
+security:
+  login_max_failures: 5
+  login_lock_duration: 900  # 15分钟 (秒)
+  wallet_nonce_expires: 300  # 5分钟 (秒)
+  password_min_length: 8
+  password_require_uppercase: true
+  password_require_lowercase: true
+  password_require_digit: true

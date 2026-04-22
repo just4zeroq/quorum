@@ -1,0 +1,30 @@
+[package]
+name = "queue"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Async runtime
+tokio.workspace = true
+
+# Kafka
+rskafka = "0.5"
+
+# Redis
+redis = { workspace = true }
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Config
+serde_yaml = { workspace = true }
+thiserror.workspace = true
+tracing.workspace = true
+
+# Utils
+async-trait.workspace = true
+bytes = "1"
+futures = "0.3"

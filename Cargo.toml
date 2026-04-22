@@ -1,0 +1,104 @@
+[workspace]
+members = [
+    "crates/common",
+    "crates/common/db",
+    "crates/common/cache",
+    "crates/common/queue",
+    "crates/common/utils",
+    "crates/domain",
+    "crates/api-gateway",
+    "crates/user-service",
+    "crates/wallet-service",
+    "crates/order-service",
+    "crates/account-service",
+    "crates/risk-service",
+    "crates/matching-engine",
+    "crates/position-service",
+    "crates/clearing-service",
+    "crates/market-data-service",
+    "crates/ledger-service",
+    "crates/prediction-market-service",
+    "crates/sql",
+]
+
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["CEX DEX Team"]
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Web framework
+salvo = { version = "0.69", features = ["affix", "cookie", "jwt-auth", "logging", "cors", "websocket", "session"] }
+axum = "0.7"
+hyper = { version = "1.2", features = ["full"] }
+tower = "0.4"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "mysql", "sqlite"] }
+
+# Redis
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager", "script"] }
+
+# Kafka
+rskafka = "0.5"
+
+# Futures
+futures = "0.3"
+
+# Config
+config = "0.14"
+serde_yaml = "0.9"
+
+# Message queue
+tokio-postgres = "0.7"
+rabbitmq = "0.5"
+
+# Utils
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1.0"
+async-trait = "0.1"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+decimals = "0.5"
+rust_decimal = { version = "1.33", features = ["serde", "serde-with-str"] }
+once_cell = "1.19"
+parking_lot = "0.12"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json"] }
+
+# WebSocket
+tokio-tungstenite = "0.21"
+
+# gRPC
+tonic = { version = "0.12", features = ["prost"] }
+prost = "0.13"
+tonic-reflection = "0.12"
+tonic-build = "0.12"
+
+# Crypto
+jsonwebtoken = "9.2"
+aes-gcm = "0.10"
+sha2 = "0.10"
+hmac = "0.12"
+rand = "0.8"
+base64 = "0.22"
+hex = "0.4"
+k256 = { version = "0.13", features = ["ecdsa", "std"] }
+sha3 = "0.10"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

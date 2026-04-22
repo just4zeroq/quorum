@@ -1,0 +1,20 @@
+[package]
+name = "domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+rust_decimal = { workspace = true, features = ["serde"] }
+chrono = { workspace = true, features = ["serde"] }
+thiserror = { workspace = true }
+
+# 内部依赖
+utils = { path = "../common/utils" }
+
+[features]
+default = []
+db = []

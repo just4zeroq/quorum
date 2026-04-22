@@ -1,0 +1,36 @@
+[package]
+name = "order-service"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+common = { path = "../common" }
+utils = { path = "../common/utils" }
+domain = { path = "../domain" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+parking_lot = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+rand = { workspace = true }
+
+# gRPC
+tonic = { workspace = true }
+prost = { workspace = true }
+tonic-reflection = { workspace = true }
+
+# Database
+sqlx = { workspace = true, features = ["sqlite"] }
+
+# Config
+config = { workspace = true }
+serde_yaml = { workspace = true }
+
+[build-dependencies]
+tonic-build = { workspace = true }

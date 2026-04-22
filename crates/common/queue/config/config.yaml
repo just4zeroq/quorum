@@ -1,0 +1,20 @@
+# Queue 组件默认配置
+# 默认使用 Redis，可切换为 Kafka
+
+# 后端类型: redis, kafka
+backend: redis
+
+# Redis 配置 (默认)
+host: localhost
+port: 6379
+db: 0
+# password: ""  # 可选
+
+# Kafka 配置 (可选)
+# brokers:
+#   - localhost:9092
+# topic: ""
+# group_id: ""
+
+# 通用配置
+connection_timeout_ms: 5000

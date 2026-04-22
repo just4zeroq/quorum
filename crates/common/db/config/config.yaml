@@ -1,0 +1,21 @@
+# Database 组件默认配置
+# 服务可以覆盖这些配置
+
+# 数据库类型: postgres, sqlite
+db_type: postgres
+
+# PostgreSQL 配置
+host: localhost
+port: 5432
+user: postgres
+password: postgres
+database: cex_dex
+
+# 连接池配置
+max_connections: 100
+min_connections: 5
+connection_timeout_ms: 5000
+idle_timeout_ms: 600000
+
+# SQLite 配置 (当 db_type 为 sqlite 时使用)
+# file_path: ./data/cex_dex.db

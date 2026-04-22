@@ -1,0 +1,44 @@
+[package]
+name = "market-data-service"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# 公共库
+common = { path = "../common" }
+db = { path = "../common/db" }
+cache = { path = "../common/cache" }
+domain = { path = "../domain" }
+
+# Async runtime
+tokio = { workspace = true }
+
+# gRPC
+tonic = "0.12"
+tonic-reflection = "0.12"
+prost = "0.13"
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+
+# Config
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+
+# Utils
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+parking_lot = { workspace = true }
+rust_decimal = { workspace = true }
+async-trait = { workspace = true }
+
+[build-dependencies]
+tonic-build = "0.12"

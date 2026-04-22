@@ -1,0 +1,9 @@
+[package]
+name = "sql-scripts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# This is a pure data module, no runtime dependencies needed

@@ -1,0 +1,219 @@
+syntax = "proto3";
+
+package market_data;
+
+service MarketDataService {
+    // 市场查询
+    rpc GetMarkets(GetMarketsRequest) returns (GetMarketsResponse);
+    rpc GetMarketDetail(GetMarketDetailRequest) returns (GetMarketDetailResponse);
+
+    // 选项价格
+    rpc GetOutcomePrices(GetOutcomePricesRequest) returns (GetOutcomePricesResponse);
+
+    // 深度/订单簿
+    rpc GetOrderBook(GetOrderBookRequest) returns (GetOrderBookResponse);
+
+    // K线
+    rpc GetKlines(GetKlinesRequest) returns (GetKlinesResponse);
+    rpc GetLatestKline(GetLatestKlineRequest) returns (GetLatestKlineResponse);
+
+    // 成交记录
+    rpc GetRecentTrades(GetRecentTradesRequest) returns (GetRecentTradesResponse);
+
+    // 24h 统计
+    rpc Get24hStats(Get24hStatsRequest) returns (Get24hStatsResponse);
+}
+
+// ========== 市场查询 ==========
+
+message GetMarketsRequest {
+    string category = 1;          // 分类过滤
+    string status = 2;            // 状态过滤: open, resolved, cancelled
+    string sort_by = 3;           // 排序字段: created_at, end_time, volume
+    bool descending = 4;          // 降序
+    int32 page = 5;               // 页码
+    int32 page_size = 6;          // 每页数量
+}
+
+message GetMarketsResponse {
+    repeated MarketSummary markets = 1;
+    int64 total = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+message MarketSummary {
+    int64 id = 1;
+    string question = 2;
+    string category = 3;
+    int64 end_time = 4;
+    string status = 5;
+    string total_volume = 6;
+    repeated OutcomeSummary outcomes = 7;
+    int64 created_at = 8;
+}
+
+message OutcomeSummary {
+    int64 id = 1;
+    string name = 2;
+    string price = 3;
+    string volume = 4;
+    string probability = 5;
+}
+
+message GetMarketDetailRequest {
+    int64 market_id = 1;
+}
+
+message GetMarketDetailResponse {
+    MarketDetail market = 1;
+    repeated OutcomeDetail outcomes = 2;
+}
+
+message MarketDetail {
+    int64 id = 1;
+    string question = 2;
+    string description = 3;
+    string category = 4;
+    string image_url = 5;
+    int64 start_time = 6;
+    int64 end_time = 7;
+    string status = 8;
+    string total_volume = 9;
+    int64 resolved_outcome_id = 10;
+    int64 resolved_at = 11;
+    int64 created_at = 12;
+    int64 updated_at = 13;
+}
+
+message OutcomeDetail {
+    int64 id = 1;
+    string name = 2;
+    string description = 3;
+    string image_url = 4;
+    string price = 5;
+    string volume = 6;
+    string probability = 7;
+}
+
+// ========== 价格查询 ==========
+
+message GetOutcomePricesRequest {
+    int64 market_id = 1;
+    repeated int64 outcome_ids = 2;
+}
+
+message GetOutcomePricesResponse {
+    int64 market_id = 1;
+    repeated OutcomePrice prices = 2;
+}
+
+message OutcomePrice {
+    int64 outcome_id = 1;
+    string name = 2;
+    string price = 3;
+    string volume = 4;
+    string probability = 5;
+    string change_24h = 6;        // 24h 价格变化
+}
+
+// ========== 订单簿 ==========
+
+message GetOrderBookRequest {
+    int64 market_id = 1;
+    int32 depth = 2;              // 深度档位数量
+}
+
+message GetOrderBookResponse {
+    int64 market_id = 1;
+    repeated OrderBookLevel bids = 2;   // 买盘
+    repeated OrderBookLevel asks = 3;   // 卖盘
+    int64 timestamp = 4;
+}
+
+message OrderBookLevel {
+    string price = 1;
+    string quantity = 2;
+    string orders = 3;            // 订单数量
+}
+
+// ========== K线 ==========
+
+message GetKlinesRequest {
+    int64 market_id = 1;
+    string interval = 2;          // 周期: 1m, 5m, 15m, 1h, 4h, 1d
+    int64 start_time = 3;
+    int64 end_time = 4;
+    int32 limit = 5;              // 数量限制
+}
+
+message GetKlinesResponse {
+    int64 market_id = 1;
+    string interval = 2;
+    repeated KlineData klines = 3;
+}
+
+message KlineData {
+    int64 timestamp = 1;
+    string open = 2;
+    string high = 3;
+    string low = 4;
+    string close = 5;
+    string volume = 6;
+    string quote_volume = 7;
+}
+
+message GetLatestKlineRequest {
+    int64 market_id = 1;
+    string interval = 2;
+}
+
+message GetLatestKlineResponse {
+    KlineData kline = 1;
+}
+
+// ========== 成交记录 ==========
+
+message GetRecentTradesRequest {
+    int64 market_id = 1;
+    int64 outcome_id = 2;         // 可选，指定选项
+    int32 limit = 3;              // 数量限制
+    int64 from_trade_id = 4;      // 分页游标
+}
+
+message GetRecentTradesResponse {
+    repeated TradeData trades = 1;
+    int64 next_from_trade_id = 2; // 下次分页游标
+    bool has_more = 3;
+}
+
+message TradeData {
+    int64 id = 1;
+    int64 market_id = 2;
+    int64 outcome_id = 3;
+    int64 user_id = 4;
+    string side = 5;              // buy, sell
+    string price = 6;
+    string quantity = 7;
+    string amount = 8;
+    string fee = 9;
+    int64 timestamp = 10;
+}
+
+// ========== 24h 统计 ==========
+
+message Get24hStatsRequest {
+    int64 market_id = 1;
+}
+
+message Get24hStatsResponse {
+    int64 market_id = 1;
+    string volume_24h = 2;        // 24h 成交量
+    string amount_24h = 3;        // 24h 成交额
+    string high_24h = 4;          // 24h 最高价
+    string low_5h = 5;            // 24h 最低价
+    string price_change = 6;      // 价格变化
+    string price_change_percent = 7; // 价格变化百分比
+    int64 trade_count_24h = 8;    // 24h 成交笔数
+    int64 timestamp = 9;
+}

@@ -1,0 +1,27 @@
+# Market Data Service Configuration
+
+service:
+  name: market-data-service
+  host: 0.0.0.0
+  port: 50006
+
+# Database configuration
+db:
+  db_type: sqlite
+  file_path: data/market-data-service.db
+  host: localhost
+  port: 5432
+  username: postgres
+  password: postgres
+  database: market_data
+
+# Redis configuration
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+
+# Prediction Market Service (上游服务)
+prediction_market:
+  host: localhost
+  port: 50010

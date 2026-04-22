@@ -1,0 +1,32 @@
+# Prediction Market Service Configuration
+
+service:
+  name: prediction-market-service
+  host: 0.0.0.0
+  port: 50010
+
+# Database configuration
+db:
+  # Database type: sqlite, postgres
+  db_type: sqlite
+  # SQLite file path
+  file_path: data/prediction-market-service.db
+  # PostgreSQL connection (when db_type is postgres)
+  host: localhost
+  port: 5432
+  username: postgres
+  password: postgres
+  database: prediction_market
+
+# Redis configuration (for caching)
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+  password: null
+
+# Queue configuration
+queue:
+  backend: redis
+  host: localhost
+  port: 6379
