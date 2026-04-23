@@ -1,16 +1,21 @@
 //! Order Event Repository - 订单事件数据访问
 
-use sqlx::{Pool, Sqlite, Row};
+use db::{DBPool, DBError, SqliteRow};
 use crate::models::OrderEventRecord;
+use sqlx::Row;
 
-pub struct OrderEventRepository;
+pub struct OrderEventRepository {
+    pool: DBPool,
+}
 
 impl OrderEventRepository {
+    pub fn new(pool: DBPool) -> Self {
+        Self { pool }
+    }
+
     /// 创建订单事件
-    pub async fn create(
-        pool: &Pool<Sqlite>,
-        event: &OrderEventRecord,
-    ) -> Result<i64, sqlx::Error> {
+    pub async fn create(&self, event: &OrderEventRecord) -> Result<i64, DBError> {
+        let pool = self.pool.sqlite_pool().ok_or_else(|| DBError::Config("Not a SQLite pool".to_string()))?;
         let result = sqlx::query(
             r#"
             INSERT INTO order_events (order_id, event_type, old_status, new_status,
@@ -34,10 +39,8 @@ impl OrderEventRepository {
     }
 
     /// 根据订单ID查询事件
-    pub async fn get_by_order_id(
-        pool: &Pool<Sqlite>,
-        order_id: &str,
-    ) -> Result<Vec<OrderEventRecord>, sqlx::Error> {
+    pub async fn get_by_order_id(&self, order_id: &str) -> Result<Vec<OrderEventRecord>, DBError> {
+        let pool = self.pool.sqlite_pool().ok_or_else(|| DBError::Config("Not a SQLite pool".to_string()))?;
         let rows = sqlx::query(
             r#"
             SELECT id, order_id, event_type, old_status, new_status,
@@ -56,10 +59,8 @@ impl OrderEventRepository {
     }
 
     /// 查询最近的订单事件
-    pub async fn get_recent(
-        pool: &Pool<Sqlite>,
-        limit: i32,
-    ) -> Result<Vec<OrderEventRecord>, sqlx::Error> {
+    pub async fn get_recent(&self, limit: i32) -> Result<Vec<OrderEventRecord>, DBError> {
+        let pool = self.pool.sqlite_pool().ok_or_else(|| DBError::Config("Not a SQLite pool".to_string()))?;
         let rows = sqlx::query(
             r#"
             SELECT id, order_id, event_type, old_status, new_status,
@@ -77,8 +78,8 @@ impl OrderEventRepository {
         Ok(events)
     }
 
-    /// 行数据转订单事件 - 使用 SqliteRow
-    fn row_to_event(row: &sqlx::sqlite::SqliteRow) -> OrderEventRecord {
+    /// 行数据转订单事件
+    fn row_to_event(row: &SqliteRow) -> OrderEventRecord {
         use rust_decimal::Decimal;
         use std::str::FromStr;
 

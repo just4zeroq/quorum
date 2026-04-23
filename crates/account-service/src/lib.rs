@@ -1,9 +1,17 @@
-//! Account Service - 资金枢纽
+//! Account Service
 //!
-//! 负责余额管理：Available / Frozen / Equity
+//! 账户余额管理服务
+//! 支持: USDT 基础资产 + {market_id}_{outcome} 结果代币
 
-pub mod account;
-pub mod handlers;
+pub mod config;
+pub mod error;
+pub mod models;
+pub mod precision;
+pub mod pb;
+pub mod repository;
+pub mod server;
+pub mod services;
 
-pub use account::AccountManager;
-pub use handlers::*;
+pub use config::Config;
+pub use error::{Error, Result};
+pub use server::AccountServer;

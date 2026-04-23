@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Config loaded: {:?}", config.service);
 
     // 创建并启动服务器
-    let server = order_service::OrderServer::new(config);
+    let server = order_service::OrderServer::new(config).await?;
     server.run().await?;
 
     Ok(())

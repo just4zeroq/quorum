@@ -22,6 +22,6 @@ tracing.workspace = true
 serde_yaml.workspace = true
 
 [features]
-default = ["postgres"]
+default = ["postgres", "sqlite"]
 postgres = ["sqlx/postgres"]
 sqlite = ["sqlx/sqlite"]

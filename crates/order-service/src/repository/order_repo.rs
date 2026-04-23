@@ -1,16 +1,22 @@
 //! Order Repository - 订单数据访问
 
-use sqlx::{Pool, Sqlite, Row};
+use db::{DBPool, DBError};
+use db::SqliteRow;
 use crate::models::{Order, OrderQuery};
+use sqlx::Row;
 
-pub struct OrderRepository;
+pub struct OrderRepository {
+    pool: DBPool,
+}
 
 impl OrderRepository {
+    pub fn new(pool: DBPool) -> Self {
+        Self { pool }
+    }
+
     /// 创建订单
-    pub async fn create(
-        pool: &Pool<Sqlite>,
-        order: &Order,
-    ) -> Result<String, sqlx::Error> {
+    pub async fn create(&self, order: &Order) -> Result<String, DBError> {
+        let pool = self.pool.sqlite_pool().ok_or_else(|| DBError::Config("Not a SQLite pool".to_string()))?;
         let result = sqlx::query(
             r#"
             INSERT INTO orders (id, user_id, market_id, outcome_id, side, order_type,
@@ -23,13 +29,13 @@ impl OrderRepository {
         .bind(order.user_id)
         .bind(order.market_id)
         .bind(order.outcome_id)
-        .bind(&order.side)
-        .bind(&order.order_type)
+        .bind(&order.side.to_string())
+        .bind(&order.order_type.to_string())
         .bind(order.price.to_string())
         .bind(order.quantity.to_string())
         .bind(order.filled_quantity.to_string())
         .bind(order.filled_amount.to_string())
-        .bind(&order.status)
+        .bind(&order.status.to_string())
         .bind(&order.client_order_id)
         .bind(order.created_at)
         .bind(order.updated_at)
@@ -40,11 +46,8 @@ impl OrderRepository {
     }
 
     /// 根据ID获取订单
-    pub async fn get_by_id(
-        pool: &Pool<Sqlite>,
-        order_id: &str,
-    ) -> Result<Option<Order>, sqlx::Error> {
-        // 先检查是否存在
+    pub async fn get_by_id(&self, order_id: &str) -> Result<Option<Order>, DBError> {
+        let pool = self.pool.sqlite_pool().ok_or_else(|| DBError::Config("Not a SQLite pool".to_string()))?;
         let exists: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM orders WHERE id = ?")
             .bind(order_id)
             .fetch_one(pool)
@@ -54,7 +57,6 @@ impl OrderRepository {
             return Ok(None);
         }
 
-        // 获取订单
         let order = sqlx::query(
             r#"
             SELECT id, user_id, market_id, outcome_id, side, order_type,
@@ -71,10 +73,8 @@ impl OrderRepository {
     }
 
     /// 获取用户订单列表
-    pub async fn get_by_user(
-        pool: &Pool<Sqlite>,
-        query: &OrderQuery,
-    ) -> Result<(Vec<Order>, i64), sqlx::Error> {
+    pub async fn get_by_user(&self, query: &OrderQuery) -> Result<(Vec<Order>, i64), DBError> {
+        let pool = self.pool.sqlite_pool().ok_or_else(|| DBError::Config("Not a SQLite pool".to_string()))?;
         let mut sql = String::from("SELECT * FROM orders WHERE 1=1");
         let mut count_sql = String::from("SELECT COUNT(*) FROM orders WHERE 1=1");
 
@@ -95,7 +95,6 @@ impl OrderRepository {
             count_sql.push_str(&format!(" AND side = '{}'", side));
         }
 
-        // 排序和分页
         let offset = (query.page - 1) * query.page_size;
         sql.push_str(&format!(" ORDER BY created_at DESC LIMIT {} OFFSET {}", query.page_size, offset));
 
@@ -105,7 +104,6 @@ impl OrderRepository {
 
         let orders: Vec<Order> = rows.iter().map(|r| Self::row_to_order(r)).collect();
 
-        // 获取总数
         let total: (i64,) = sqlx::query_as(&count_sql)
             .fetch_one(pool)
             .await?;
@@ -115,12 +113,13 @@ impl OrderRepository {
 
     /// 获取市场订单列表
     pub async fn get_by_market(
-        pool: &Pool<Sqlite>,
+        &self,
         market_id: i64,
         side: Option<&str>,
         _status: Option<&str>,
         limit: i32,
-    ) -> Result<Vec<Order>, sqlx::Error> {
+    ) -> Result<Vec<Order>, DBError> {
+        let pool = self.pool.sqlite_pool().ok_or_else(|| DBError::Config("Not a SQLite pool".to_string()))?;
         let mut sql = String::from("SELECT * FROM orders WHERE market_id = ? AND status IN ('submitted', 'partially_filled')");
 
         if let Some(s) = side {
@@ -139,12 +138,13 @@ impl OrderRepository {
 
     /// 更新订单状态
     pub async fn update_status(
-        pool: &Pool<Sqlite>,
+        &self,
         order_id: &str,
         status: &str,
         filled_quantity: &str,
         filled_amount: &str,
-    ) -> Result<bool, sqlx::Error> {
+    ) -> Result<bool, DBError> {
+        let pool = self.pool.sqlite_pool().ok_or_else(|| DBError::Config("Not a SQLite pool".to_string()))?;
         let now = chrono::Utc::now().timestamp_millis();
         let result = sqlx::query(
             r#"
@@ -165,10 +165,8 @@ impl OrderRepository {
     }
 
     /// 取消订单
-    pub async fn cancel(
-        pool: &Pool<Sqlite>,
-        order_id: &str,
-    ) -> Result<bool, sqlx::Error> {
+    pub async fn cancel(&self, order_id: &str) -> Result<bool, DBError> {
+        let pool = self.pool.sqlite_pool().ok_or_else(|| DBError::Config("Not a SQLite pool".to_string()))?;
         let now = chrono::Utc::now().timestamp_millis();
         let result = sqlx::query(
             "UPDATE orders SET status = 'cancelled', updated_at = ? WHERE id = ? AND status IN ('pending', 'submitted', 'partially_filled')"
@@ -181,8 +179,8 @@ impl OrderRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    /// 行数据转订单 - 使用 SqliteRow
-    fn row_to_order(row: &sqlx::sqlite::SqliteRow) -> Order {
+    /// 行数据转订单
+    fn row_to_order(row: &SqliteRow) -> Order {
         use rust_decimal::Decimal;
         use std::str::FromStr;
 

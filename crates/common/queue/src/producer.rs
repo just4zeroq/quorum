@@ -10,6 +10,8 @@ use crate::config::{Backend, MergedConfig};
 pub enum ProducerError {
     #[error("Redis error: {0}")]
     Redis(#[from] redis::RedisError),
+    #[error("Kafka error: {0}")]
+    Kafka(#[from] crate::kafka_producer::KafkaProducerError),
     #[error("Configuration error: {0}")]
     Config(String),
     #[error("Serialization error: {0}")]
@@ -68,23 +70,22 @@ impl MessageProducer for RedisProducer {
     }
 }
 
-/// Kafka 生产者 (简化版)
+/// Kafka 生产者
 pub struct KafkaProducer {
-    _config: MergedConfig,
+    producer: crate::kafka_producer::KafkaQueueProducer,
 }
 
 impl KafkaProducer {
     pub async fn new(config: &MergedConfig) -> Result<Self> {
-        // TODO: 实现完整的 Kafka 生产者
-        Ok(Self { _config: config.clone() })
+        let producer = crate::kafka_producer::KafkaQueueProducer::new(config).await?;
+        Ok(Self { producer })
     }
 }
 
 #[async_trait::async_trait]
 impl MessageProducer for KafkaProducer {
     async fn send(&self, topic: &str, message: Message) -> Result<()> {
-        // TODO: 实现 Kafka 发送
-        tracing::debug!("Kafka send to {}: {:?}", topic, message);
+        self.producer.send(topic, message).await?;
         Ok(())
     }
 }

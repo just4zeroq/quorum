@@ -9,7 +9,6 @@ authors.workspace = true
 common = { path = "../common" }
 utils = { path = "../common/utils" }
 domain = { path = "../domain" }
-tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
@@ -19,6 +18,7 @@ thiserror = { workspace = true }
 chrono = { workspace = true }
 rust_decimal = { workspace = true }
 rand = { workspace = true }
+tokio = { workspace = true }
 
 # gRPC
 tonic = { workspace = true }
@@ -26,7 +26,11 @@ prost = { workspace = true }
 tonic-reflection = { workspace = true }
 
 # Database
+db = { path = "../common/db" }
 sqlx = { workspace = true, features = ["sqlite"] }
+
+# Queue
+queue = { path = "../common/queue" }
 
 # Config
 config = { workspace = true }

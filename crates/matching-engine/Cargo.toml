@@ -1,23 +1,51 @@
 [package]
 name = "matching-engine"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-authors.workspace = true
+version = "0.2.0"
+edition = "2021"
 
 [dependencies]
-common = { path = "../common" }
-tokio = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
-parking_lot = { workspace = true }
-thiserror = { workspace = true }
-uuid = { workspace = true }
-chrono = { workspace = true }
-rust_decimal = { workspace = true }
-bimap = "0.6"
+bincode = "1.3.3"
+disruptor = "3.6.1"
+serde = { version = "1.0.219", features = ["derive"] }
+lz4_flex = "0.11.3"
+thiserror = "2.0.12"
+anyhow = "1.0.86"
 
-[features]
-default = []
-benchmark = []
+# rkyv 用于 WAL 高性能序列化
+rkyv = { version = "0.7", default-features = false, features = ["alloc", "size_64", "std", "validation"] }
+
+# 性能优化
+smallvec = { version = "1.13", features = ["serde"] }
+
+# 日志
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing-appender = "0.2.3"
+
+# 内存映射
+memmap2 = "0.9.5"
+slab = { version = "0.4.9", features = ["serde"] }
+ahash = { version = "0.8.12", features = ["serde"] }
+
+# CPU 亲和性
+core_affinity = "0.8.3"
+
+# SIMD 向量化优化
+wide = "0.7.28"
+
+# gRPC 服务
+tonic = "0.12"
+prost = "0.13"
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+bytes = "1"
+
+# Kafka 消息队列
+queue = { path = "../common/queue" }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[build-dependencies]
+tonic-build = "0.12"

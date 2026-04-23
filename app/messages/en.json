@@ -1,0 +1,89 @@
+{
+  "common": {
+    "appName": "Quorum",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "view": "View",
+    "back": "Back",
+    "home": "Home",
+    "portfolio": "Portfolio",
+    "settings": "Settings"
+  },
+  "header": {
+    "markets": "Markets",
+    "portfolio": "Portfolio",
+    "connectWallet": "Connect Wallet",
+    "disconnect": "Disconnect",
+    "switchNetwork": "Switch Network"
+  },
+  "markets": {
+    "title": "Prediction Markets",
+    "search": "Search markets...",
+    "filter": "Filter",
+    "sortBy": "Sort by",
+    "volume": "Volume",
+    "liquidity": "Liquidity",
+    "popularity": "Popularity",
+    "endDate": "End Date",
+    "resolved": "Resolved",
+    "trading": "Trading",
+    "closed": "Closed",
+    "noMarkets": "No markets found",
+    "createMarket": "Create Market"
+  },
+  "trading": {
+    "buy": "Buy",
+    "sell": "Sell",
+    "price": "Price",
+    "amount": "Amount",
+    "shares": "Shares",
+    "total": "Total",
+    "fee": "Fee",
+    "potentialPayout": "Potential Payout",
+    "probability": "Probability",
+    "placeOrder": "Place Order",
+    "cancelOrder": "Cancel Order",
+    "orderPlaced": "Order placed successfully",
+    "orderCancelled": "Order cancelled successfully",
+    "insufficientBalance": "Insufficient balance",
+    "minOrder": "Minimum order",
+    "maxOrder": "Maximum order"
+  },
+  "portfolio": {
+    "title": "Your Portfolio",
+    "positions": "Positions",
+    "history": "History",
+    "pendingOrders": "Pending Orders",
+    "noPositions": "No open positions",
+    "noHistory": "No trading history",
+    "noPendingOrders": "No pending orders",
+    "pnl": "P&L",
+    "realizedPnl": "Realized P&L",
+    "unrealizedPnl": "Unrealized P&L"
+  },
+  "marketDetail": {
+    "description": "Description",
+    "outcomes": "Outcomes",
+    "liquidity": "Liquidity",
+    "volume24h": "24h Volume",
+    "totalVolume": "Total Volume",
+    "settled": "Settled",
+    "winner": "Winner",
+    "resolutionDate": "Resolution Date",
+    "about": "About"
+  },
+  "errors": {
+    "walletNotConnected": "Wallet not connected",
+    "wrongNetwork": "Please switch to Base network",
+    "transactionFailed": "Transaction failed",
+    "orderFailed": "Order failed",
+    "networkError": "Network error"
+  }
+}

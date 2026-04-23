@@ -4,8 +4,9 @@ use tonic::{Request, Response, Status};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
-use crate::models::{Order, OrderQuery};
+use crate::models::{Order, OrderQuery, OrderSide, OrderType, OrderStatus};
 use crate::repository::OrderRepository;
+use db::DBPool;
 use crate::pb::{
     CreateOrderRequest, CreateOrderResponse,
     CancelOrderRequest, CancelOrderResponse,
@@ -18,11 +19,11 @@ use crate::pb::{
 };
 
 pub struct OrderServiceImpl {
-    pool: sqlx::SqlitePool,
+    pool: DBPool,
 }
 
 impl OrderServiceImpl {
-    pub fn new(pool: sqlx::SqlitePool) -> Self {
+    pub fn new(pool: DBPool) -> Self {
         Self { pool }
     }
 }
@@ -59,20 +60,37 @@ impl OrderService for OrderServiceImpl {
             return Err(Status::invalid_argument("Invalid side, must be 'buy' or 'sell'"));
         }
 
+        // 解析方向和类型为枚举
+        let side = match req.side.as_str() {
+            "buy" => OrderSide::Buy,
+            "sell" => OrderSide::Sell,
+            _ => return Err(Status::invalid_argument("Invalid side")),
+        };
+
+        let order_type_enum = match order_type.as_str() {
+            "limit" => OrderType::Limit,
+            "market" => OrderType::Market,
+            "ioc" => OrderType::IOC,
+            "fok" => OrderType::FOK,
+            "post_only" => OrderType::PostOnly,
+            _ => return Err(Status::invalid_argument("Invalid order type")),
+        };
+
         // 创建订单
         let order = Order::new(
             req.user_id,
             req.market_id,
             req.outcome_id,
-            req.side,
-            order_type,
+            side,
+            order_type_enum,
             price,
             quantity,
             if req.client_order_id.is_empty() { None } else { Some(req.client_order_id) },
         );
 
         // 保存到数据库
-        OrderRepository::create(&self.pool, &order)
+        let repo = OrderRepository::new(self.pool.clone());
+        repo.create(&order)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -92,8 +110,10 @@ impl OrderService for OrderServiceImpl {
     ) -> Result<Response<CancelOrderResponse>, Status> {
         let req = request.into_inner();
 
+        let repo = OrderRepository::new(self.pool.clone());
+
         // 验证订单存在且属于该用户
-        let order = OrderRepository::get_by_id(&self.pool, &req.order_id)
+        let order = repo.get_by_id(&req.order_id)
             .await
             .map_err(|e| Status::internal(e.to_string()))?
             .ok_or_else(|| Status::not_found("Order not found"))?;
@@ -107,13 +127,13 @@ impl OrderService for OrderServiceImpl {
         }
 
         // 取消订单
-        OrderRepository::cancel(&self.pool, &req.order_id)
+        repo.cancel(&req.order_id)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
         tracing::info!("Order cancelled: {}", req.order_id);
 
-        let updated_order = OrderRepository::get_by_id(&self.pool, &req.order_id)
+        let updated_order = repo.get_by_id(&req.order_id)
             .await
             .map_err(|e| Status::internal(e.to_string()))?
             .unwrap();
@@ -131,7 +151,8 @@ impl OrderService for OrderServiceImpl {
     ) -> Result<Response<GetOrderResponse>, Status> {
         let req = request.into_inner();
 
-        let order = OrderRepository::get_by_id(&self.pool, &req.order_id)
+        let repo = OrderRepository::new(self.pool.clone());
+        let order = repo.get_by_id(&req.order_id)
             .await
             .map_err(|e| Status::internal(e.to_string()))?
             .ok_or_else(|| Status::not_found("Order not found"))?;
@@ -150,17 +171,33 @@ impl OrderService for OrderServiceImpl {
         let page = if req.page <= 0 { 1 } else { req.page };
         let page_size = if req.page_size <= 0 { 20 } else { req.page_size };
 
+        // 解析 status 字符串为 OrderStatus 枚举
+        let status = if req.status.is_empty() {
+            None
+        } else {
+            match req.status.as_str() {
+                "pending" => Some(OrderStatus::Pending),
+                "submitted" => Some(OrderStatus::Submitted),
+                "partially_filled" => Some(OrderStatus::PartiallyFilled),
+                "filled" => Some(OrderStatus::Filled),
+                "cancelled" => Some(OrderStatus::Cancelled),
+                "rejected" => Some(OrderStatus::Rejected),
+                _ => return Err(Status::invalid_argument("Invalid status")),
+            }
+        };
+
         let query = OrderQuery {
             user_id: Some(req.user_id),
             market_id: if req.market_id == 0 { None } else { Some(req.market_id) },
             outcome_id: None,
-            status: if req.status.is_empty() { None } else { Some(req.status) },
+            status,
             side: None,
             page,
             page_size,
         };
 
-        let (orders, total) = OrderRepository::get_by_user(&self.pool, &query)
+        let repo = OrderRepository::new(self.pool.clone());
+        let (orders, total) = repo.get_by_user(&query)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -182,8 +219,8 @@ impl OrderService for OrderServiceImpl {
 
         let limit = if req.limit <= 0 { 100 } else { req.limit };
 
-        let orders = OrderRepository::get_by_market(
-            &self.pool,
+        let repo = OrderRepository::new(self.pool.clone());
+        let orders = repo.get_by_market(
             req.market_id,
             if req.side.is_empty() { None } else { Some(&req.side) },
             if req.status.is_empty() { None } else { Some(&req.status) },
@@ -219,8 +256,8 @@ impl OrderService for OrderServiceImpl {
             req.filled_amount.clone()
         };
 
-        let success = OrderRepository::update_status(
-            &self.pool,
+        let repo = OrderRepository::new(self.pool.clone());
+        let success = repo.update_status(
             &req.order_id,
             &req.status,
             &filled_quantity,
@@ -247,13 +284,13 @@ impl OrderServiceImpl {
             user_id: order.user_id,
             market_id: order.market_id,
             outcome_id: order.outcome_id,
-            side: order.side,
-            order_type: order.order_type,
+            side: order.side.to_string(),
+            order_type: order.order_type.to_string(),
             price: order.price.to_string(),
             quantity: order.quantity.to_string(),
             filled_quantity: order.filled_quantity.to_string(),
             filled_amount: order.filled_amount.to_string(),
-            status: order.status,
+            status: order.status.to_string(),
             client_order_id: order.client_order_id.unwrap_or_default(),
             created_at: order.created_at,
             updated_at: order.updated_at,

@@ -1,0 +1,301 @@
+syntax = "proto3";
+
+package account;
+
+// Account Service - 账户余额管理服务
+// 支持: USDT 基础资产 + {market_id}_{outcome} 结果代币
+service AccountService {
+    // 余额查询
+    rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+    rpc GetBalances(GetBalancesRequest) returns (GetBalancesResponse);
+
+    // 冻结/解冻 (Order Service 调用)
+    rpc Freeze(FreezeRequest) returns (FreezeResponse);
+    rpc Unfreeze(UnfreezeRequest) returns (UnfreezeResponse);
+    rpc FreezeAndDeduct(FreezeAndDeductRequest) returns (FreezeAndDeductResponse);
+    rpc CheckAndFreeze(CheckAndFreezeRequest) returns (CheckAndFreezeResponse);
+
+    // 充值/提现 (Wallet Service 调用)
+    rpc Deposit(DepositRequest) returns (DepositResponse);
+    rpc Withdraw(WithdrawRequest) returns (WithdrawResponse);
+
+    // 划转 (内部服务调用)
+    rpc Transfer(TransferRequest) returns (TransferResponse);
+
+    // 风控锁定/解锁 (Risk Service 调用)
+    rpc Lock(LockRequest) returns (LockResponse);
+    rpc Unlock(UnlockRequest) returns (UnlockResponse);
+
+    // 风控查询
+    rpc CheckBalance(CheckBalanceRequest) returns (CheckBalanceResponse);
+    rpc CheckFrozen(CheckFrozenRequest) returns (CheckFrozenResponse);
+
+    // 结算派彩 (Clearing Service 调用)
+    rpc Settle(SettleRequest) returns (SettleResponse);
+
+    // 批量操作 (用于对账)
+    rpc BatchGetBalances(BatchGetBalancesRequest) returns (BatchGetBalancesResponse);
+}
+
+// ==================== 余额查询 ====================
+
+message GetBalanceRequest {
+    int64 user_id = 1;
+    string asset = 2;
+    int32 precision = 3;  // 创建账户时使用的精度 (仅首次创建有效，已存在则忽略)
+}
+
+message GetBalanceResponse {
+    bool success = 1;
+    string message = 2;
+    int64 account_id = 3;
+    int64 user_id = 4;
+    string asset = 5;
+    int64 available = 6;   // 最小单位整数
+    int64 frozen = 7;     // 最小单位整数
+    int64 locked = 8;     // 最小单位整数
+    int32 precision = 9;   // 资产精度 (小数位数)
+}
+
+message GetBalancesRequest {
+    int64 user_id = 1;
+}
+
+message GetBalancesResponse {
+    repeated Balance balances = 1;
+}
+
+message Balance {
+    int64 account_id = 1;
+    string asset = 2;
+    int64 available = 3;   // 最小单位整数
+    int64 frozen = 4;      // 最小单位整数
+    int64 locked = 5;      // 最小单位整数
+    int32 precision = 6;   // 资产精度 (小数位数)
+}
+
+// ==================== 冻结/解冻 ====================
+
+message FreezeRequest {
+    int64 user_id = 1;
+    string asset = 2;
+    int64 amount = 3;     // 最小单位整数
+    string order_id = 4;
+    string reason = 5;
+    int32 precision = 6;  // 创建账户时的精度 (仅首次创建有效)
+}
+
+message FreezeResponse {
+    bool success = 1;
+    string message = 2;
+    int64 account_id = 3;
+    int64 available_before = 4;  // 最小单位整数
+    int64 available_after = 5;
+    int64 frozen_before = 6;
+    int64 frozen_after = 7;
+}
+
+message UnfreezeRequest {
+    int64 user_id = 1;
+    string asset = 2;
+    int64 amount = 3;     // 最小单位整数
+    string order_id = 4;
+    string reason = 5;
+}
+
+message UnfreezeResponse {
+    bool success = 1;
+    string message = 2;
+    int64 account_id = 3;
+    int64 available_before = 4;
+    int64 available_after = 5;
+    int64 frozen_before = 6;
+    int64 frozen_after = 7;
+}
+
+message FreezeAndDeductRequest {
+    int64 user_id = 1;
+    string asset = 2;            // 基础资产 (USDT)
+    int64 freeze_amount = 3;     // 从冻结扣减的金额 (最小单位)
+    int64 deduct_amount = 4;     // 实际扣减金额 (最小单位, 可能因部分成交而不同)
+    string order_id = 5;
+    string reason = 6;
+    string outcome_asset = 7;     // 结果代币标识 ("{market_id}_{outcome}")
+    int64 outcome_amount = 8;    // 结果代币增加数量 (最小单位)
+    int32 outcome_precision = 9; // 结果代币精度 (创建账户时使用)
+}
+
+message FreezeAndDeductResponse {
+    bool success = 1;
+    string message = 2;
+    int64 account_id = 3;
+    int64 available_before = 4;
+    int64 available_after = 5;
+    int64 frozen_before = 6;
+    int64 frozen_after = 7;
+}
+
+message CheckAndFreezeRequest {
+    int64 user_id = 1;
+    string asset = 2;
+    int64 amount = 3;     // 最小单位整数
+    string order_id = 4;
+    string reason = 5;
+    int32 precision = 6;  // 创建账户时的精度 (仅首次创建有效)
+}
+
+message CheckAndFreezeResponse {
+    bool success = 1;
+    string message = 2;
+    int64 account_id = 3;
+    int64 available_before = 4;
+    int64 available_after = 5;
+    int64 frozen_before = 6;
+    int64 frozen_after = 7;
+}
+
+// ==================== 充值/提现 ====================
+
+message DepositRequest {
+    int64 user_id = 1;
+    string asset = 2;
+    int64 amount = 3;     // 最小单位整数
+    string tx_id = 4;
+    string reason = 5;
+}
+
+message DepositResponse {
+    bool success = 1;
+    string message = 2;
+    int64 account_id = 3;
+    int64 available_before = 4;
+    int64 available_after = 5;
+}
+
+message WithdrawRequest {
+    int64 user_id = 1;
+    string asset = 2;
+    int64 amount = 3;     // 最小单位整数
+    string withdraw_id = 4;
+    string reason = 5;
+}
+
+message WithdrawResponse {
+    bool success = 1;
+    string message = 2;
+    int64 account_id = 3;
+    int64 available_before = 4;
+    int64 available_after = 5;
+}
+
+// ==================== 划转 ====================
+
+message TransferRequest {
+    int64 from_user_id = 1;
+    int64 to_user_id = 2;
+    string asset = 3;
+    int64 amount = 4;     // 最小单位整数
+    string transfer_id = 5;
+    string reason = 6;
+}
+
+message TransferResponse {
+    bool success = 1;
+    string message = 2;
+    int64 from_available_before = 3;
+    int64 from_available_after = 4;
+    int64 to_available_before = 5;
+    int64 to_available_after = 6;
+}
+
+// ==================== 风控锁定/解锁 ====================
+
+message LockRequest {
+    int64 user_id = 1;
+    string asset = 2;
+    int64 amount = 3;     // 最小单位整数
+    string reason = 4;
+}
+
+message LockResponse {
+    bool success = 1;
+    string message = 2;
+    int64 account_id = 3;
+    int64 available_before = 4;
+    int64 available_after = 5;
+    int64 locked_before = 6;
+    int64 locked_after = 7;
+}
+
+message UnlockRequest {
+    int64 user_id = 1;
+    string asset = 2;
+    int64 amount = 3;     // 最小单位整数
+    string reason = 4;
+}
+
+message UnlockResponse {
+    bool success = 1;
+    string message = 2;
+    int64 account_id = 3;
+    int64 available_before = 4;
+    int64 available_after = 5;
+    int64 locked_before = 6;
+    int64 locked_after = 7;
+}
+
+// ==================== 风控查询 ====================
+
+message CheckBalanceRequest {
+    int64 user_id = 1;
+    string asset = 2;
+    int64 amount = 3;     // 最小单位整数
+}
+
+message CheckBalanceResponse {
+    bool sufficient = 1;
+    int64 available = 2;  // 最小单位整数
+    int64 required = 3;   // 最小单位整数
+}
+
+message CheckFrozenRequest {
+    int64 user_id = 1;
+    string asset = 2;
+    string order_id = 3;
+}
+
+message CheckFrozenResponse {
+    bool sufficient = 1;
+    int64 frozen = 2;    // 最小单位整数
+    int64 required = 3;   // 最小单位整数
+}
+
+// ==================== 结算派彩 ====================
+
+message SettleRequest {
+    int64 user_id = 1;
+    string outcome_asset = 2;   // 结果代币标识
+    int64 outcome_amount = 3;   // 消耗的结果代币数量 (最小单位)
+    string base_asset = 4;      // 基础资产标识 (USDT)
+    int64 base_amount = 5;     // 派彩基础资产数量 (最小单位)
+    int64 market_id = 6;
+    string reason = 7;
+}
+
+message SettleResponse {
+    bool success = 1;
+    string message = 2;
+    int64 outcome_available_after = 3;  // 结算后结果代币可用
+    int64 base_available_after = 4;      // 结算后基础资产可用
+}
+
+// ==================== 批量操作 ====================
+
+message BatchGetBalancesRequest {
+    repeated int64 user_ids = 1;
+    repeated string assets = 2;
+}
+
+message BatchGetBalancesResponse {
+    repeated Balance balances = 1;
+}

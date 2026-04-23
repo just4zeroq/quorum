@@ -7,13 +7,29 @@ authors.workspace = true
 
 [dependencies]
 common = { path = "../common" }
+db = { path = "../common/db", features = ["sqlite", "postgres"] }
+domain = { path = "../domain" }
 tokio = { workspace = true }
-axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-parking_lot = { workspace = true }
+tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
-uuid = { workspace = true }
 chrono = { workspace = true }
-rust_decimal = { workspace = true }
+
+# Database
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "sqlite"] }
+
+# gRPC
+tonic = { workspace = true }
+prost = { workspace = true }
+tonic-reflection = { workspace = true }
+
+# Config
+serde_yaml = { workspace = true }
+
+[build-dependencies]
+tonic-build = { workspace = true }
+
+[lints.rust]
+unsafe_code = "forbid"

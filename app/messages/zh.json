@@ -1,0 +1,89 @@
+{
+  "common": {
+    "appName": "Quorum",
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "confirm": "确认",
+    "cancel": "取消",
+    "close": "关闭",
+    "save": "保存",
+    "edit": "编辑",
+    "delete": "删除",
+    "view": "查看",
+    "back": "返回",
+    "home": "首页",
+    "portfolio": "投资组合",
+    "settings": "设置"
+  },
+  "header": {
+    "markets": "市场",
+    "portfolio": "投资组合",
+    "connectWallet": "连接钱包",
+    "disconnect": "断开连接",
+    "switchNetwork": "切换网络"
+  },
+  "markets": {
+    "title": "预测市场",
+    "search": "搜索市场...",
+    "filter": "筛选",
+    "sortBy": "排序",
+    "volume": "成交量",
+    "liquidity": "流动性",
+    "popularity": "热度",
+    "endDate": "结束日期",
+    "resolved": "已结算",
+    "trading": "交易中",
+    "closed": "已关闭",
+    "noMarkets": "未找到市场",
+    "createMarket": "创建市场"
+  },
+  "trading": {
+    "buy": "买入",
+    "sell": "卖出",
+    "price": "价格",
+    "amount": "数量",
+    "shares": "份额",
+    "total": "总计",
+    "fee": "费用",
+    "potentialPayout": "潜在收益",
+    "probability": "概率",
+    "placeOrder": "下单",
+    "cancelOrder": "取消订单",
+    "orderPlaced": "下单成功",
+    "orderCancelled": "取消成功",
+    "insufficientBalance": "余额不足",
+    "minOrder": "最小订单",
+    "maxOrder": "最大订单"
+  },
+  "portfolio": {
+    "title": "您的投资组合",
+    "positions": "持仓",
+    "history": "历史",
+    "pendingOrders": "待处理订单",
+    "noPositions": "无持仓",
+    "noHistory": "无交易历史",
+    "noPendingOrders": "无待处理订单",
+    "pnl": "盈亏",
+    "realizedPnl": "已实现盈亏",
+    "unrealizedPnl": "未实现盈亏"
+  },
+  "marketDetail": {
+    "description": "描述",
+    "outcomes": "结果",
+    "liquidity": "流动性",
+    "volume24h": "24小时成交量",
+    "totalVolume": "总成交量",
+    "settled": "已结算",
+    "winner": "获胜者",
+    "resolutionDate": "结算日期",
+    "about": "关于"
+  },
+  "errors": {
+    "walletNotConnected": "钱包未连接",
+    "wrongNetwork": "请切换到Base网络",
+    "transactionFailed": "交易失败",
+    "orderFailed": "下单失败",
+    "networkError": "网络错误"
+  }
+}
