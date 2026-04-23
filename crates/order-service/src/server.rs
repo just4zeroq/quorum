@@ -64,8 +64,12 @@ impl OrderServer {
     }
 
     pub async fn run(mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // 创建服务
-        let order_service = OrderServiceImpl::new(self.pool.clone());
+        // 创建服务，注入 Kafka Producer
+        let order_service = if let Some(producer) = self.kafka_producer.take() {
+            OrderServiceImpl::new(self.pool.clone()).with_kafka_producer(producer)
+        } else {
+            OrderServiceImpl::new(self.pool.clone())
+        };
 
         let addr = format!("{}:{}", self.config.service.host, self.config.service.port)
             .parse::<SocketAddr>()?;

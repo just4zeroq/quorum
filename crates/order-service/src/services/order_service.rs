@@ -20,11 +20,17 @@ use crate::pb::{
 
 pub struct OrderServiceImpl {
     pool: DBPool,
+    kafka_producer: Option<crate::kafka_producer::OrderCommandProducer>,
 }
 
 impl OrderServiceImpl {
     pub fn new(pool: DBPool) -> Self {
-        Self { pool }
+        Self { pool, kafka_producer: None }
+    }
+
+    pub fn with_kafka_producer(mut self, producer: crate::kafka_producer::OrderCommandProducer) -> Self {
+        self.kafka_producer = Some(producer);
+        self
     }
 }
 
@@ -96,6 +102,14 @@ impl OrderService for OrderServiceImpl {
 
         tracing::info!("Order created: {}", order.id);
 
+        // 发送到 Kafka
+        if let Some(ref producer) = self.kafka_producer {
+            if let Err(e) = producer.send_place_order(&order).await {
+                tracing::error!("Failed to send order to Kafka: {}", e);
+                // 注意: 订单已创建，不回滚。后续可以添加重试机制
+            }
+        }
+
         Ok(Response::new(CreateOrderResponse {
             success: true,
             order_id: order.id.clone(),
@@ -132,6 +146,13 @@ impl OrderService for OrderServiceImpl {
             .map_err(|e| Status::internal(e.to_string()))?;
 
         tracing::info!("Order cancelled: {}", req.order_id);
+
+        // 发送取消命令到 Kafka
+        if let Some(ref producer) = self.kafka_producer {
+            if let Err(e) = producer.send_cancel_order(&req.order_id, order.user_id).await {
+                tracing::error!("Failed to send cancel order to Kafka: {}", e);
+            }
+        }
 
         let updated_order = repo.get_by_id(&req.order_id)
             .await
