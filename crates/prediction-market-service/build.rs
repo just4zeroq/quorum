@@ -1,10 +1,20 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let api_src = manifest_dir
+        .parent().unwrap()
+        .parent().unwrap()
+        .join("crates/api/src");
+
+    std::fs::create_dir_all(&api_src)?;
+
     tonic_build::configure()
-        .out_dir("src/pb")
-        .file_descriptor_set_path("src/pb/prediction_market.desc")
+        .build_server(true)
+        .build_client(true)
+        .file_descriptor_set_path(&api_src.join("prediction_market.desc"))
+        .out_dir(&api_src)
         .compile_protos(
-            &["src/pb/prediction_market.proto"],
-            &["src/pb"],
+            &[manifest_dir.join("src/pb/prediction_market.proto")],
+            &[manifest_dir.join("src/pb")],
         )?;
     Ok(())
 }

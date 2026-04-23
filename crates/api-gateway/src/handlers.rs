@@ -52,7 +52,7 @@ pub async fn register(req: &mut Request, _depot: &mut Depot, res: &mut Response)
     let config = GrpcConfig::default();
     match create_user_client(config.user_service_addr).await {
         Ok(mut client) => {
-            let grpc_request = api_types::user::RegisterRequest {
+            let grpc_request = api::user::RegisterRequest {
                 username: payload.username.clone(),
                 email: payload.email.clone(),
                 password: payload.password,
@@ -126,7 +126,7 @@ pub async fn login(req: &mut Request, _depot: &mut Depot, res: &mut Response) ->
     let config = GrpcConfig::default();
     match create_user_client(config.user_service_addr).await {
         Ok(mut client) => {
-            let grpc_request = api_types::user::LoginRequest {
+            let grpc_request = api::user::LoginRequest {
                 email: payload.email.clone(),
                 password: payload.password,
                 code_2fa: String::new(),
@@ -200,7 +200,7 @@ pub async fn get_current_user(_req: &mut Request, depot: &mut Depot, res: &mut R
     let config = GrpcConfig::default();
     match create_user_client(config.user_service_addr).await {
         Ok(mut client) => {
-            let grpc_request = api_types::user::GetUserRequest {
+            let grpc_request = api::user::GetUserRequest {
                 user_id: user_id.clone(),
             };
 
@@ -286,7 +286,7 @@ pub async fn create_order(req: &mut Request, depot: &mut Depot, res: &mut Respon
     let config = GrpcConfig::default();
     match create_order_client(config.order_service_addr).await {
         Ok(mut client) => {
-            let grpc_request = api_types::order::CreateOrderRequest {
+            let grpc_request = api::order::CreateOrderRequest {
                 user_id: user_id_i64,
                 market_id: payload.market_id as i64,
                 outcome_id: payload.outcome_id as i64,
@@ -348,7 +348,7 @@ pub async fn get_order(req: &mut Request, _depot: &mut Depot, res: &mut Response
     let config = GrpcConfig::default();
     match create_order_client(config.order_service_addr).await {
         Ok(mut client) => {
-            let grpc_request = api_types::order::GetOrderRequest {
+            let grpc_request = api::order::GetOrderRequest {
                 order_id: order_id.clone(),
             };
 
@@ -414,7 +414,7 @@ pub async fn cancel_order(req: &mut Request, depot: &mut Depot, res: &mut Respon
     let config = GrpcConfig::default();
     match create_order_client(config.order_service_addr).await {
         Ok(mut client) => {
-            let grpc_request = api_types::order::CancelOrderRequest {
+            let grpc_request = api::order::CancelOrderRequest {
                 order_id: order_id.clone(),
                 user_id: user_id_i64,
             };
@@ -474,7 +474,7 @@ pub async fn get_orders(req: &mut Request, depot: &mut Depot, res: &mut Response
     let config = GrpcConfig::default();
     match create_order_client(config.order_service_addr).await {
         Ok(mut client) => {
-            let grpc_request = api_types::order::GetUserOrdersRequest {
+            let grpc_request = api::order::GetUserOrdersRequest {
                 user_id: user_id_i64,
                 market_id: query.market_id.map(|m| m as i64).unwrap_or(0),
                 status: query.status.unwrap_or_default(),

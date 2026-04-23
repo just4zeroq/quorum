@@ -468,3 +468,115 @@ impl ServiceNameService for ServiceNameServiceImpl {
 - API Gateway 负责 HTTP -> gRPC 转换
 - Proto 文件放在 `src/pb/` 目录
 - build.rs 配置 tonic-build 生成代码
+
+---
+
+## API 接口定义规范
+
+### 架构原则
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         API Gateway                               │
+│              依赖 crates/api (接口定义)                          │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         crates/api                               │
+│              统一接口定义，所有服务依赖此包                       │
+│   ├── user.rs (来自 user-service)                               │
+│   ├── order.rs (来自 order-service)                             │
+│   ├── auth.rs (来自 auth-service)                              │
+│   └── ...                                                      │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+        ┌─────────────────┼─────────────────┐
+        ▼                 ▼                 ▼
+┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+│user-service │   │order-service│   │auth-service │
+│  src/pb/   │   │   src/pb/   │   │   src/pb/   │
+│ user.proto  │   │order.proto │   │ auth.proto  │
+└─────────────┘   └─────────────┘   └─────────────┘
+```
+
+### 设计原则
+
+1. **Proto 文件放在各自服务** - 源文件 `src/pb/*.proto` 保留在服务目录
+2. **生成代码输出到 crates/api** - build.rs 配置输出到 `crates/api/src/`
+3. **统一依赖** - 所有组件依赖 `api = { path = "../api" }`
+4. **单向依赖** - domain → api → services → gateway
+
+### 服务 Proto 定义模板
+
+```rust
+// {service}/build.rs
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let api_src = manifest_dir
+        .parent().unwrap()
+        .parent().unwrap()
+        .join("crates/api/src");
+
+    std::fs::create_dir_all(&api_src)?;
+
+    tonic_build::configure()
+        .build_server(true)           // 生成服务端代码
+        .build_client(true)          // 生成客户端代码
+        .file_descriptor_set_path(&api_src.join("{service}.desc"))
+        .out_dir(&api_src)
+        .compile_protos(
+            &[manifest_dir.join("src/pb/{service}.proto")],
+            &[manifest_dir.join("src/pb")],
+        )?;
+    Ok(())
+}
+```
+
+### crates/api/src/lib.rs 结构
+
+```rust
+pub mod user {
+    include!("user.rs");
+}
+
+pub mod order {
+    include!("order.rs");
+}
+
+pub mod auth {
+    include!("auth.rs");
+}
+
+// ... 其他服务模块
+
+// 便捷导出
+pub use user::user_service_client::UserServiceClient;
+pub use order::order_service_client::OrderServiceClient;
+pub use auth::auth_service_client::AuthServiceClient;
+```
+
+### 服务间依赖关系
+
+| 包 | 依赖 | 说明 |
+|----|------|------|
+| `domain` | 无 | 纯业务模型，无序列化 |
+| `api` | 无 | 接口定义 + 序列化注解 |
+| `user-service` | domain, api | 服务实现 |
+| `order-service` | domain, api | 服务实现 |
+| `api-gateway` | api, common | 依赖接口，不依赖服务实现 |
+| `ws-*` | api | WebSocket 服务 |
+
+### 新增服务流程
+
+1. 在 `src/pb/` 创建 `*.proto` 文件
+2. 配置 `build.rs` 输出到 `crates/api/src/`
+3. 服务 `Cargo.toml` 添加 `api = { path = "../api" }`
+4. 在 `crates/api/src/lib.rs` 添加 `pub mod {service};`
+5. 其他服务/Gateway 依赖 `api` 使用接口
+
+### Proto 命名规范
+
+- 服务名使用下划线: `user_service.proto`
+- 生成模块使用下划线: `pub mod user { include!("user.rs"); }`
+- 生成的 Client: `UserServiceClient`

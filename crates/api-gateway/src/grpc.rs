@@ -38,23 +38,23 @@ pub async fn connect(addr: String) -> Result<Channel, tonic::transport::Error> {
 /// 创建 User Service 客户端
 pub async fn create_user_client(
     addr: String,
-) -> Result<api_types::user::user_service_client::UserServiceClient<Channel>, tonic::transport::Error> {
+) -> Result<api::user::user_service_client::UserServiceClient<Channel>, tonic::transport::Error> {
     let channel = connect(addr).await?;
-    Ok(api_types::user::user_service_client::UserServiceClient::new(channel))
+    Ok(api::user::user_service_client::UserServiceClient::new(channel))
 }
 
 /// 创建 Order Service 客户端
 pub async fn create_order_client(
     addr: String,
-) -> Result<api_types::order::order_service_client::OrderServiceClient<Channel>, tonic::transport::Error> {
+) -> Result<api::order::order_service_client::OrderServiceClient<Channel>, tonic::transport::Error> {
     let channel = connect(addr).await?;
-    Ok(api_types::order::order_service_client::OrderServiceClient::new(channel))
+    Ok(api::order::order_service_client::OrderServiceClient::new(channel))
 }
 
 /// 创建 Auth Service 客户端
 pub async fn create_auth_client(
     addr: String,
-) -> Result<api_types::auth::auth_service_client::AuthServiceClient<Channel>, tonic::transport::Error> {
+) -> Result<api::auth::auth_service_client::AuthServiceClient<Channel>, tonic::transport::Error> {
     let channel = connect(addr).await?;
-    Ok(api_types::auth::auth_service_client::AuthServiceClient::new(channel))
+    Ok(api::auth::auth_service_client::AuthServiceClient::new(channel))
 }

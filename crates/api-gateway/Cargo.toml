@@ -7,7 +7,7 @@ authors.workspace = true
 
 [dependencies]
 common = { path = "../common" }
-api-types = { path = "../api-types" }
+api = { path = "../api" }
 tokio = { workspace = true }
 salvo = { workspace = true }
 serde = { workspace = true }
