@@ -10,14 +10,12 @@ members = [
     "crates/user-service",
     "crates/wallet-service",
     "crates/order-service",
-    "crates/account-service",
     "crates/risk-service",
+    "crates/portfolio-service",
     "crates/matching-engine",
-    "crates/position-service",
-    "crates/clearing-service",
     "crates/market-data-service",
-    "crates/ledger-service",
     "crates/prediction-market-service",
+    "crates/ws-market-data",
     "crates/sql",
 ]
 
@@ -80,6 +78,7 @@ reqwest = { version = "0.11", features = ["json"] }
 
 # WebSocket
 tokio-tungstenite = "0.21"
+futures-util = "0.3"
 
 # gRPC
 tonic = { version = "0.12", features = ["prost"] }

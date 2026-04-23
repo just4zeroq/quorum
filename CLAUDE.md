@@ -202,21 +202,14 @@ rust-cex/
 │   ├── api-gateway/              # API 网关 (HTTP/WS 入口)
 │   ├── user-service/             # 用户服务
 │   ├── wallet-service/           # 钱包服务
-│   ├── market-data-service/      # 行情服务
+│   ├── portfolio-service/         # 账户+持仓+清算+账本
 │   ├── order-service/            # 订单服务
-│   ├── position-service/         # 持仓服务
-│   ├── account-service/          # 账户服务
-│   ├── clearing-service/         # 清算服务
-│   ├── ledger-service/           # 账本服务
-│   ├── trade-service/            # 成交记录服务
 │   ├── risk-service/             # 风控服务
-│   ├── reconciliation-service/   # 对账服务
-│   ├── admin-service/            # 管理服务
+│   ├── market-data-service/      # 行情服务
 │   ├── matching-engine/          # 撮合引擎 (内存 CLOB + WAL)
 │   ├── prediction-market-service/ # 预测市场服务
-│   ├── ws-market-data/           # 行情 WebSocket 服务
-│   ├── ws-order/                 # 订单 WebSocket 服务
-│   └── ws-prediction/            # 市场 WebSocket 服务
+│   └── ws-market-data/           # 行情 WebSocket 服务
+```
 ```
 
 ## 编译命令
@@ -250,26 +243,27 @@ cargo run -p api-gateway
 |------|------|--------|------|
 | User Service | 50001 | 独立 | 用户注册/登录/KYC/2FA |
 | Wallet Service | 50002 | 独立 | 充值/提现/地址管理 |
-| Order Service | 50003 | 独立 | 订单 CRUD/冻结请求 |
-| Risk Service | 50004 | 独立 | 提现风控/交易限额 (简化版) |
-| Position Service | 50005 | 独立 | 用户持仓管理 |
-| Market Data Service | 50006 | **共享 PM DB** | 行情/K线/订单簿/24h统计 |
-| Admin Service | 50007 | 独立 | 后台管理 |
-| Clearing Service | 50008 | 独立 | 成交结算/派彩计算 |
-| Matching Engine | 50009 | **无** | CLOB 撮合 (内存 + WAL) |
-| Prediction Market Service | 50010 | **主数据库** | 市场管理/结算/派彩 |
-| Ledger Service | 50011 | 独立 | 账本/流水 (不可变) |
-| Trade Service | 50013 | 独立 | 成交记录查询 |
-| Account Service | - | 独立 | 余额管理 (Available/Frozen) |
-| Reconciliation Service | 50014 | 独立 | 对账服务 |
+| Portfolio Service | 50003 | 独立 | 账户+持仓+清算+账本 |
+| Order Service | 50004 | 独立 | 订单管理 |
+| Risk Service | 50005 | 独立 | 风控规则/限额 |
+| Market Data Service | 50006 | 共享 PM DB | 行情/K线/订单簿/24h统计 |
+| Matching Engine | 50007 | **无** | CLOB 撮合 (内存 + WAL) |
+| Prediction Market Service | 50008 | 主数据库 | 市场管理/结算/派彩 |
+| ws-market-data | 50016 | - | WebSocket 行情推送 |
 
-### WebSocket 服务
+### 网关
 
-| 服务 | 端口 | 推送数据 |
-|------|------|----------|
-| ws-market-data | 50016 | K线/成交/深度/24h ticker |
-| ws-order | 50017 | 用户订单状态变更 |
-| ws-prediction | 50018 | 市场事件 (结算/关闭) |
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| API Gateway | 8080 | HTTP/WS 统一入口 |
+
+### Portfolio Service 模块
+
+合并自:
+- Account Service (账户余额)
+- Position Service (持仓管理)
+- Clearing Service (结算清算)
+- Ledger Service (账本流水)
 
 ### 网关
 

@@ -1,0 +1,36 @@
+[package]
+name = "ws-market-data"
+version = "0.1.0"
+edition = "2021"
+description = "WebSocket Market Data Service for real-time行情推送"
+authors = ["Quorum Team"]
+
+[dependencies]
+# WebSocket
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Utils
+uuid = { version = "1", features = ["v4", "serde"] }
+thiserror = "1"
+
+# Config
+config = "0.14"
+
+# Common queue
+queue = { path = "../common/queue" }
+
+[dev-dependencies]
+tokio-test = "0.4"

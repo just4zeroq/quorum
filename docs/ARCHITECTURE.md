@@ -32,20 +32,15 @@
 
 | 服务 | 端口 | 数据库 | 职责 | 状态 |
 |------|------|--------|------|------|
-| **User Service** | 50001 | 独立 | 用户注册、登录、KYC、2FA | ✅ Proto + Server |
+| **User Service** | 50001 | 独立 | 用户注册、登录、KYC、2FA | 框架 |
 | **Wallet Service** | 50002 | 独立 | 钱包地址、充值、提现 | 框架 |
-| **Order Service** | 50003 | 独立 | 订单 CRUD、冻结请求、事件记录 | ✅ Proto + Server |
-| **Risk Service** | 50004 | 独立 | 风控检查、限额 (简化版) | 待实现 |
-| **Position Service** | 50005 | 独立 | 用户持仓管理 | 待实现 |
-| **Market Data Service** | 50006 | 共享 PM DB | 行情、K线、订单簿、24h 统计 | ✅ Proto + Server + Tests |
-| **Admin Service** | 50007 | 独立 | 管理后台 | 框架 |
-| **Clearing Service** | 50008 | 独立 | 成交结算、派彩计算 | 待实现 |
-| **Matching Engine** | 50009 | 无 | CLOB 撮合 (内存 + WAL) | ✅ Core Logic |
-| **Prediction Market Service** | 50010 | 主数据库 | 预测市场管理、结算、派彩 | ✅ Proto + Server + Tests |
-| **Ledger Service** | 50011 | 独立 | 账本服务 (不可变) | 待实现 |
-| **Trade Service** | 50013 | 独立 | 成交记录管理 | 待实现 |
-| **Account Service** | - | 独立 | 余额管理 (Available/Frozen) | 待实现 |
-| **Reconciliation Service** | 50014 | 独立 | 数据对账 | 待实现 |
+| **Portfolio Service** | 50003 | 独立 | 账户+持仓+清算+账本 | 框架 |
+| **Order Service** | 50004 | 独立 | 订单管理 | 框架 |
+| **Risk Service** | 50005 | 独立 | 风控检查、限额 | 框架 |
+| **Market Data Service** | 50006 | 共享 PM DB | 行情、K线、订单簿、24h 统计 | 框架 |
+| **Matching Engine** | 50007 | 无 | CLOB 撮合 (内存 + WAL) | ✅ 核心完成 |
+| **Prediction Market Service** | 50008 | 主数据库 | 市场管理、结算、派彩 | 框架 |
+| **ws-market-data** | 50016 | - | 行情 WebSocket 推送 | 框架 |
 
 #### WebSocket 服务
 
