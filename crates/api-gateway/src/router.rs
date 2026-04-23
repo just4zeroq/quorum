@@ -35,14 +35,12 @@ pub fn create_router() -> Router {
         .push(Router::with_path("/api/v1/accounts")
             .hoop(auth)
             .push(Router::with_path("/balance").get(get_balance))
-            .push(Router::with_path("/transfer").post(transfer))
         )
 
-        // 持仓相关（合约）
+        // 持仓相关
         .push(Router::with_path("/api/v1/positions")
             .hoop(auth)
             .push(Router::with_path("").get(get_positions))
-            .push(Router::with_path("/<symbol>").get(get_position))
         )
 
         // 行情相关（公开）

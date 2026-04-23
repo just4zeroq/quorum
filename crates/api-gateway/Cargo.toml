@@ -17,6 +17,15 @@ thiserror = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 reqwest = { workspace = true }
+jsonwebtoken = { workspace = true }
+base64 = { workspace = true }
+
+# gRPC client
+tonic = { workspace = true }
+prost = { workspace = true }
+
+[build-dependencies]
+tonic-build = { workspace = true }
 
 [features]
 default = ["cookie"]

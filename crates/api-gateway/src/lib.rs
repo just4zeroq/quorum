@@ -5,7 +5,10 @@
 pub mod router;
 pub mod middleware;
 pub mod handlers;
+pub mod grpc;
+pub mod pb;
 
 pub use router::create_router;
-pub use middleware::{Auth, RateLimit};
+pub use middleware::{auth, rate_limit, log_request, cors_handler};
 pub use handlers::*;
+pub use grpc::{GrpcConfig, connect, create_user_client, create_order_client, create_auth_client};
