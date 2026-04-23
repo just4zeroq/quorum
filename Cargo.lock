@@ -114,6 +114,7 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 name = "api-gateway"
 version = "0.1.0"
 dependencies = [
+ "api-types",
  "base64 0.22.1",
  "chrono",
  "common",
@@ -126,10 +127,21 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tonic",
- "tonic-build",
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "api-types"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "prost",
+ "serde",
+ "serde_json",
+ "tonic",
+ "tonic-build",
 ]
 
 [[package]]

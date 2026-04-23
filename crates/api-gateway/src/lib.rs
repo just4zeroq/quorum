@@ -6,7 +6,6 @@ pub mod router;
 pub mod middleware;
 pub mod handlers;
 pub mod grpc;
-pub mod pb;
 
 pub use router::create_router;
 pub use middleware::{auth, rate_limit, log_request, cors_handler};

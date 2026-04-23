@@ -7,6 +7,7 @@ authors.workspace = true
 
 [dependencies]
 common = { path = "../common" }
+api-types = { path = "../api-types" }
 tokio = { workspace = true }
 salvo = { workspace = true }
 serde = { workspace = true }
@@ -23,9 +24,6 @@ base64 = { workspace = true }
 # gRPC client
 tonic = { workspace = true }
 prost = { workspace = true }
-
-[build-dependencies]
-tonic-build = { workspace = true }
 
 [features]
 default = ["cookie"]

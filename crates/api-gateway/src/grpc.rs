@@ -31,7 +31,6 @@ impl Default for GrpcConfig {
 
 /// 连接到 gRPC 服务
 pub async fn connect(addr: String) -> Result<Channel, tonic::transport::Error> {
-    // Use Endpoint to create a channel from a String
     let endpoint = tonic::transport::Endpoint::new(addr)?;
     endpoint.timeout(Duration::from_secs(10)).connect().await
 }
@@ -39,36 +38,23 @@ pub async fn connect(addr: String) -> Result<Channel, tonic::transport::Error> {
 /// 创建 User Service 客户端
 pub async fn create_user_client(
     addr: String,
-) -> Result<user_service_client::UserServiceClient<Channel>, tonic::transport::Error> {
+) -> Result<api_types::user::user_service_client::UserServiceClient<Channel>, tonic::transport::Error> {
     let channel = connect(addr).await?;
-    Ok(user_service_client::UserServiceClient::new(channel))
+    Ok(api_types::user::user_service_client::UserServiceClient::new(channel))
 }
 
 /// 创建 Order Service 客户端
 pub async fn create_order_client(
     addr: String,
-) -> Result<order_service_client::OrderServiceClient<Channel>, tonic::transport::Error> {
+) -> Result<api_types::order::order_service_client::OrderServiceClient<Channel>, tonic::transport::Error> {
     let channel = connect(addr).await?;
-    Ok(order_service_client::OrderServiceClient::new(channel))
+    Ok(api_types::order::order_service_client::OrderServiceClient::new(channel))
 }
 
 /// 创建 Auth Service 客户端
 pub async fn create_auth_client(
     addr: String,
-) -> Result<auth_service_client::AuthServiceClient<Channel>, tonic::transport::Error> {
+) -> Result<api_types::auth::auth_service_client::AuthServiceClient<Channel>, tonic::transport::Error> {
     let channel = connect(addr).await?;
-    Ok(auth_service_client::AuthServiceClient::new(channel))
-}
-
-// Re-export generated proto clients
-pub mod user_service_client {
-    pub use crate::pb::user::user_service_client::UserServiceClient;
-}
-
-pub mod order_service_client {
-    pub use crate::pb::order::order_service_client::OrderServiceClient;
-}
-
-pub mod auth_service_client {
-    pub use crate::pb::auth::auth_service_client::AuthServiceClient;
+    Ok(api_types::auth::auth_service_client::AuthServiceClient::new(channel))
 }

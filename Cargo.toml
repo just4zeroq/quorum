@@ -7,6 +7,7 @@ members = [
     "crates/common/utils",
     "crates/common/rate_limiter",
     "crates/domain",
+    "crates/api-types",
     "crates/api-gateway",
     "crates/user-service",
     "crates/wallet-service",
