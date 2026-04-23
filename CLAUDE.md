@@ -21,7 +21,7 @@
 | Account Service | ✅ | - | - | ✅ |
 | Order Service | ✅ | ✅ | - | ✅ |
 | Prediction Market Service | ✅ | ✅ | ✅ | ✅ |
-| Matching Engine | - | ✅ Core | ✅ | ✅ |
+| Matching Engine | - | ✅ Core + Kafka | ✅ | ✅ |
 | Position Service | ✅ | - | - | ✅ |
 | Clearing Service | ✅ | - | - | ✅ |
 | Market Data Service | ✅ | ✅ | ✅ | ✅ |
@@ -37,6 +37,79 @@
 | ws-prediction | - | - | - | ✅ |
 
 > ✅ = 已完成实现/文档 | - = 未实现 | Core = 仅核心逻辑
+
+## 撮合引擎架构 (Matching Engine)
+
+### 预测市场订单簿设计 (方案1: 单一 YES 订单簿)
+
+撮合引擎采用**方案1**设计预测市场订单簿：
+
+#### 核心原理
+- **只维护 YES 订单簿**，NO 价格通过互补计算 (SCALE - YES 价格)
+- 每个订单记录 `original_asset` 标识原始下单品种 (YES/NO)
+- 撤单时通过 `order_id` 定位原始订单
+
+#### 价格转换
+```
+前端展示时:
+  YES 价格: 直接展示
+  NO 价格: SCALE - YES 价格 (互补)
+
+内部处理时:
+  买 YES → YES 簿 Bid
+  卖 YES → YES 簿 Ask
+  买 NO  → YES 簿 Ask (价格取反)
+  卖 NO  → YES 簿 Bid (价格取反)
+```
+
+#### 数据结构
+```rust
+struct OrderEntry {
+    order_id: OrderId,
+    uid: UserId,
+    price: Price,                    // YES 簿价格
+    action: OrderAction,             // YES 簿方向
+    original_asset: String,          // "1_yes" 或 "1_no"
+    original_action: OrderAction,    // 原始下单方向
+}
+```
+
+#### 优势
+- 数据量减少 50%（vs 双簿方案）
+- 撤单逻辑简单（无需处理镜像订单）
+- 撮合算法统一（只需维护一个订单簿）
+
+### 核心组件
+
+```
+matching-engine/
+├── src/
+│   ├── api/                    # API 类型定义
+│   │   ├── commands.rs         # OrderCommand 命令结构
+│   │   ├── events.rs          # MatcherTradeEvent 成交事件
+│   │   └── types.rs            # 价格/数量/订单类型
+│   ├── core/                   # 核心撮合逻辑
+│   │   ├── exchange.rs         # ExchangeCore 交易所核心
+│   │   ├── pipeline.rs          # Pipeline 处理器流水线
+│   │   ├── journal.rs          # WAL 日志 (rkyv 序列化)
+│   │   ├── snapshot.rs         # 快照管理 (bincode 序列化)
+│   │   ├── processors/          # 处理器
+│   │   │   ├── matching_engine.rs  # 撮合引擎路由
+│   │   │   └── risk_engine.rs     # 风控引擎
+│   │   └── orderbook/          # 订单簿实现
+│   │       ├── direct.rs        # DirectOrderBook (高性能链表)
+│   │       ├── prediction.rs    # PredictionOrderBook (方案1)
+│   │       └── ...
+│   ├── server.rs               # Kafka 消费入口
+│   └── event_emitter.rs        # Kafka 事件发布
+```
+
+### 服务间通信
+
+| 源服务 | 目标服务 | 通信方式 | 说明 |
+|--------|----------|----------|------|
+| Matching Engine | Kafka | Producer | 发布成交/订单事件 |
+| Kafka | Matching Engine | Consumer | 消费 order.commands |
 
 ## 公共组件
 
