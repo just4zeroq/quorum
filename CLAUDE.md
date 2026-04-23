@@ -18,19 +18,14 @@
 | 服务 | Proto | Server | Tests | 文档 |
 |------|:------:|:------:|:-----:|:----:|
 | User Service | ✅ | ✅ | - | ✅ |
-| Account Service | ✅ | - | - | ✅ |
+| Portfolio Service | ✅ | - | - | ✅ |
 | Order Service | ✅ | ✅ | - | ✅ |
 | Prediction Market Service | ✅ | ✅ | ✅ | ✅ |
 | Matching Engine | - | ✅ Core + Kafka | ✅ | ✅ |
-| Position Service | ✅ | - | - | ✅ |
-| Clearing Service | ✅ | - | - | ✅ |
 | Market Data Service | ✅ | ✅ | ✅ | ✅ |
-| Trade Service | ✅ | - | - | ✅ |
-| Ledger Service | ✅ | - | - | ✅ |
 | Risk Service | ✅ | - | - | ✅ |
 | Wallet Service | ✅ | - | - | ✅ |
-| Reconciliation Service | ✅ | - | - | ✅ |
-| Admin Service | ✅ | - | - | ✅ |
+| Auth Service | ✅ | - | - | - |
 | API Gateway | - | - | - | ✅ |
 | ws-market-data | - | - | - | ✅ |
 | ws-order | - | - | - | ✅ |
@@ -205,6 +200,7 @@ rust-cex/
 │   ├── portfolio-service/         # 账户+持仓+清算+账本
 │   ├── order-service/            # 订单服务
 │   ├── risk-service/             # 风控服务
+│   ├── auth-service/             # 鉴权服务 (JWT/API Key)
 │   ├── market-data-service/      # 行情服务
 │   ├── matching-engine/          # 撮合引擎 (内存 CLOB + WAL)
 │   ├── prediction-market-service/ # 预测市场服务
@@ -249,6 +245,7 @@ cargo run -p api-gateway
 | Market Data Service | 50006 | 共享 PM DB | 行情/K线/订单簿/24h统计 |
 | Matching Engine | 50007 | **无** | CLOB 撮合 (内存 + WAL) |
 | Prediction Market Service | 50008 | 主数据库 | 市场管理/结算/派彩 |
+| Auth Service | 50009 | 独立 | JWT/API Key 鉴权 |
 | ws-market-data | 50016 | - | WebSocket 行情推送 |
 
 ### 网关
@@ -265,11 +262,12 @@ cargo run -p api-gateway
 - Clearing Service (结算清算)
 - Ledger Service (账本流水)
 
-### 网关
+### Auth Service 模块
 
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| API Gateway | 8080 | HTTP 入口 + WS 连接管理 |
+提供 API 和 WebSocket 鉴权:
+- JWT Token 管理 (Access/Refresh)
+- API Key 管理
+- Session 管理
 
 ### 已移除的服务 (现货不需要)
 

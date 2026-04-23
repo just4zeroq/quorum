@@ -5,6 +5,7 @@ members = [
     "crates/common/cache",
     "crates/common/queue",
     "crates/common/utils",
+    "crates/common/rate_limiter",
     "crates/domain",
     "crates/api-gateway",
     "crates/user-service",
@@ -12,6 +13,7 @@ members = [
     "crates/order-service",
     "crates/risk-service",
     "crates/portfolio-service",
+    "crates/auth-service",
     "crates/matching-engine",
     "crates/market-data-service",
     "crates/prediction-market-service",
@@ -75,6 +77,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # HTTP client
 reqwest = { version = "0.11", features = ["json"] }
+
+# HTTP headers
+headers = "0.3"
 
 # WebSocket
 tokio-tungstenite = "0.21"
