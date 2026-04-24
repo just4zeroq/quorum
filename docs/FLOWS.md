@@ -3,12 +3,14 @@
 ## 目录
 
 1. [业务流程总览](#1-业务流程总览)
-2. [用户注册登录](#2-用户注册登录)
-3. [充值流程](#3-充值流程)
-4. [下单/挂单流程](#4-下单挂单流程)
-5. [取现流程](#5-取现流程)
-6. [WebSocket 实时数据](#6-websocket-实时数据)
-7. [预测市场业务流](#7-预测市场业务流)
+2. [用户注册登录 ✅](#2-用户注册登录)
+3. [充值流程 ⏳](#3-充值流程)
+4. [下单/挂单流程 ⚡](#4-下单挂单流程)
+5. [取现流程 ⏳](#5-取现流程)
+6. [WebSocket 实时数据 ✅](#6-websocket-实时数据)
+7. [预测市场业务流 ⚡](#7-预测市场业务流)
+
+> **图例:** ✅ 已完成 | ⚡ 部分完成 | ⏳ 待开发
 
 ---
 
@@ -70,6 +72,8 @@
 ---
 
 ## 2. 用户注册登录
+
+> **状态: ✅ 已完成** (User Service + Auth Service)
 
 ### 2.1 注册流程
 
@@ -192,6 +196,8 @@ POST /api/v1/users/login
 
 ## 3. 充值流程
 
+> **状态: ⏳ 待开发** (Wallet Service / Portfolio Service gRPC Server 未实现)
+
 ### 3.1 充值流程 (链上充值)
 
 ```
@@ -262,6 +268,8 @@ Authorization: Bearer <token>
 ---
 
 ## 4. 下单挂单流程
+
+> **状态: ⚡ 部分完成** (Order Service / Matching Engine 已实现; Risk Service / Portfolio Service gRPC Server 待开发)
 
 ### 4.1 下单流程 (市价单)
 
@@ -435,6 +443,8 @@ Authorization: Bearer <token>
 
 ## 5. 取现流程
 
+> **状态: ⏳ 待开发** (Wallet Service / Portfolio Service gRPC Server 未实现)
+
 ### 5.1 取现流程
 
 ```
@@ -520,6 +530,8 @@ Authorization: Bearer <token>
 ---
 
 ## 6. WebSocket 实时数据
+
+> **状态: ✅ 已完成** (ws-market-data)
 
 ### 6.1 连接流程
 
@@ -692,6 +704,8 @@ Authorization: Bearer <token>
 ---
 
 ## 7. 预测市场业务流
+
+> **状态: ⚡ 部分完成** (Prediction Market Service 已实现; 结算赔付涉及 Portfolio Service 待开发)
 
 ### 7.1 市场生命周期
 
