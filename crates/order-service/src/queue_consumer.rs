@@ -1,6 +1,6 @@
-//! Kafka Consumer - 消费撮合事件
+//! Queue Consumer - 消费撮合事件
 
-use common::queue::{MessageConsumer, ConsumerManager};
+use queue::{MessageConsumer, ConsumerManager};
 use crate::repository::OrderRepository;
 use crate::models::OrderStatus;
 use tracing::{info, error};
@@ -25,10 +25,14 @@ impl MatchEventConsumer {
 
         loop {
             match self.consumer.recv().await {
-                Ok(msg) => {
+                Ok(Some(msg)) => {
                     if let Err(e) = self.process_message(&msg.value).await {
                         error!("Failed to process message: {}", e);
                     }
+                }
+                Ok(None) => {
+                    // No message available, continue polling
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                 }
                 Err(e) => {
                     error!("Failed to receive message: {}", e);

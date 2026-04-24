@@ -1,6 +1,6 @@
 //! Matching Engine Service
 //!
-//! 独立的撮合引擎服务，通过 gRPC 和 Kafka 与其他服务通信
+//! 独立的撮合引擎服务，通过 gRPC 和消息队列与其他服务通信
 
 mod server;
 
@@ -19,6 +19,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Starting Matching Engine Service...");
 
-    // 启动 gRPC + Kafka 服务
+    // 启动 gRPC + Queue 服务
     server::start().await
 }

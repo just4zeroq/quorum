@@ -11,14 +11,14 @@ common = { path = "../common" }
 db = { path = "../common/db" }
 cache = { path = "../common/cache" }
 domain = { path = "../domain" }
+api = { path = "../api" }
 
 # Async runtime
 tokio = { workspace = true }
 
-# Web framework (用于 gRPC server)
-salvo = { workspace = true }
-tonic = "0.12"
-prost = "0.13"
+# gRPC server
+tonic = { workspace = true }
+prost = { workspace = true }
 
 # Serialization
 serde = { workspace = true }

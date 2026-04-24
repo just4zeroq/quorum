@@ -8,8 +8,8 @@ pub mod repository;
 pub mod services;
 pub mod server;
 pub mod pb;
-pub mod kafka_consumer;
-pub mod kafka_producer;
+pub mod queue_consumer;
+pub mod queue_producer;
 
 pub use config::Config;
 pub use server::OrderServer;

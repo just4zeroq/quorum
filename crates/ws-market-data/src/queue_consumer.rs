@@ -1,4 +1,4 @@
-//! Kafka Consumer for Market Data
+//! Queue Consumer for Market Data
 //!
 //! 使用 common/queue 包消费市场数据
 

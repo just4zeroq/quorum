@@ -21,7 +21,7 @@
 | Portfolio Service | ✅ | - | - | ✅ |
 | Order Service | ✅ | ✅ | - | ✅ |
 | Prediction Market Service | ✅ | ✅ | ✅ | ✅ |
-| Matching Engine | - | ✅ Core + Kafka | ✅ | ✅ |
+| Matching Engine | - | ✅ Core + Queue | ✅ | ✅ |
 | Market Data Service | ✅ | ✅ | ✅ | ✅ |
 | Risk Service | ✅ | - | - | ✅ |
 | Wallet Service | ✅ | - | - | ✅ |
@@ -67,7 +67,7 @@
 - **Web 框架**: Salvo (API Gateway), Tonic (gRPC)
 - **数据库**: PostgreSQL / SQLite (测试)
 - **缓存**: Redis
-- **消息队列**: Kafka
+- **消息队列**: common/queue (Redis Streams / Kafka 双后端)
 - **ORM**: SQLx
 
 ## 目录结构
@@ -159,7 +159,7 @@ cargo run -p user-service
                             ↓
                     Matching Engine
                             ↓
-                         Kafka
+                      消息队列 (common/queue)
                             ↓
               ws-market-data / Portfolio / Order / ...
 ```
@@ -183,10 +183,10 @@ cargo run -p user-service
 |--------|----------|----------|------|
 | API Gateway | 所有业务服务 | gRPC | HTTP 入口转发 |
 | Order Service | Matching Engine | gRPC | 下单/撤单 |
-| Matching Engine | Kafka | Kafka | 发布成交/订单事件 |
-| Kafka | Order Service | Kafka Consumer | 订单状态更新 |
-| Kafka | Portfolio Service | Kafka Consumer | 持仓/余额更新 |
-| Kafka | ws-market-data | Kafka Consumer | 行情推送 |
+| Matching Engine | 消息队列 | Queue Producer | 发布成交/订单事件 |
+| 消息队列 | Order Service | Queue Consumer | 订单状态更新 |
+| 消息队列 | Portfolio Service | Queue Consumer | 持仓/余额更新 |
+| 消息队列 | ws-market-data | Queue Consumer | 行情推送 |
 | Prediction Market Service | Matching Engine | gRPC | 创建市场/结算 |
 | Prediction Market Service | Market Data Service | 共享 DB | 市场数据 |
 

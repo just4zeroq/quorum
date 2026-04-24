@@ -1,8 +1,8 @@
 //! Matching Engine Server
 //!
-//! 通过 Kafka 消费订单命令，调用撮合引擎处理
+//! 通过消息队列消费订单命令，调用撮合引擎处理
 //!
-//! 架构: async Kafka consumer -> mpsc channel -> sync worker thread -> ExchangeCore
+//! 架构: async Queue consumer -> mpsc channel -> sync worker thread -> ExchangeCore
 
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -12,7 +12,7 @@ use queue::{ConsumerManagerWithHandler, MessageHandler, Config as QueueConfig, C
 use crate::api::{OrderCommand, OrderCommandType, OrderAction, OrderType, MatcherTradeEvent};
 use crate::core::exchange::{ExchangeCore, ExchangeConfig};
 
-/// 事件通道，用于将撮合结果发送到 Kafka
+/// 事件通道，用于将撮合结果发送到消息队列
 type EventSender = tokio::sync::mpsc::Sender<MatcherTradeEvent>;
 
 /// 订单命令 JSON 结构
@@ -33,17 +33,17 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = "0.0.0.0:50051".parse()?;
     tracing::info!("Matching Engine listening on {}", addr);
 
-    // 初始化 Kafka 配置
+    // 初始化队列配置
     let queue_config = QueueConfig::default();
     let merged_config = queue_config.merge();
 
     // 创建 command channel（async handler -> sync worker）
     let (cmd_tx, cmd_rx): (Sender<OrderCommand>, Receiver<OrderCommand>) = mpsc::channel();
 
-    // 创建事件通道（撮合结果 -> Kafka producer）
+    // 创建事件通道（撮合结果 -> Queue producer）
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<MatcherTradeEvent>(10000);
 
-    // 初始化 Kafka producer
+    // 初始化 Queue producer
     let producer = ProducerManager::new(merged_config.clone());
     producer.init().await.map_err(|e| format!("Failed to init producer: {}", e))?;
 

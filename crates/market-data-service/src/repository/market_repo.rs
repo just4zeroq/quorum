@@ -247,6 +247,7 @@ impl MarketRepository {
 
         Ok(OrderBook {
             market_id,
+            outcome_id: 0,
             bids,
             asks,
             timestamp: chrono::Utc::now().timestamp_millis(),

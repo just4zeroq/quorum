@@ -5215,6 +5215,7 @@ checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
 name = "user-service"
 version = "0.1.0"
 dependencies = [
+ "api",
  "async-trait",
  "bcrypt",
  "cache",
@@ -5227,7 +5228,6 @@ dependencies = [
  "prost",
  "rand 0.8.6",
  "rust_decimal",
- "salvo",
  "serde",
  "serde_json",
  "serde_yaml",

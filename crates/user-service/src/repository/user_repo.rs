@@ -3,6 +3,7 @@
 use std::sync::Arc;
 use crate::config::Config;
 use db::{DBPool, DBError};
+use sqlx::Row;
 
 pub struct UserRepository {
     pool: DBPool,
@@ -34,33 +35,70 @@ impl UserRepository {
         email: &str,
         password_hash: &str,
     ) -> Result<i64, DBError> {
-        let now = chrono::Utc::now().to_rfc3339();
-
         if self.pool.is_sqlite() {
             let pool = self.pool.sqlite_pool().unwrap();
-            sqlx::query(
-                "INSERT INTO users (username, email, password_hash, kyc_status, kyc_level, two_factor_enabled, status, created_at, updated_at) VALUES (?, ?, ?, 'none', 0, 0, 'active', ?, ?)"
+            let row = sqlx::query(
+                "INSERT INTO users (username, email, password_hash, kyc_status, kyc_level, two_factor_enabled, status, created_at, updated_at) VALUES (?, ?, ?, 'none', 0, 0, 'active', datetime('now'), datetime('now')) RETURNING id"
             )
             .bind(username)
             .bind(email)
             .bind(password_hash)
-            .bind(&now)
-            .bind(&now)
-            .execute(pool)
+            .fetch_one(pool)
             .await?;
+            Ok(row.get::<i64, _>("id"))
         } else {
             let pool = self.pool.pg_pool().unwrap();
-            sqlx::query(
-                "INSERT INTO users (username, email, password_hash, kyc_status, kyc_level, two_factor_enabled, status, created_at, updated_at) VALUES ($1, $2, $3, 'none', 0, false, 'active', NOW(), NOW())"
+            let row = sqlx::query(
+                "INSERT INTO users (username, email, password_hash, kyc_status, kyc_level, two_factor_enabled, status, created_at, updated_at) VALUES ($1, $2, $3, 'none', 0, false, 'active', NOW(), NOW()) RETURNING id"
             )
             .bind(username)
             .bind(email)
             .bind(password_hash)
-            .execute(pool)
+            .fetch_one(pool)
             .await?;
+            Ok(row.get::<i64, _>("id"))
         }
+    }
 
-        Ok(1) // 返回用户ID
+    /// 根据 ID 查找用户
+    pub async fn find_by_id(&self, id: i64) -> Result<Option<UserRow>, DBError> {
+        if self.pool.is_sqlite() {
+            let pool = self.pool.sqlite_pool().unwrap();
+            let row = sqlx::query_as::<_, UserRowSqlite>(
+                "SELECT id, username, email, kyc_status, kyc_level, two_factor_enabled, status FROM users WHERE id = ?"
+            )
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
+
+            Ok(row.map(|r| UserRow {
+                id: r.id,
+                username: r.username,
+                email: r.email,
+                kyc_status: r.kyc_status,
+                kyc_level: r.kyc_level,
+                two_factor_enabled: r.two_factor_enabled,
+                status: r.status,
+            }))
+        } else {
+            let pool = self.pool.pg_pool().unwrap();
+            let row = sqlx::query_as::<_, UserRowPg>(
+                "SELECT id, username, email, kyc_status, kyc_level, two_factor_enabled, status FROM users WHERE id = $1"
+            )
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
+
+            Ok(row.map(|r| UserRow {
+                id: r.id,
+                username: r.username,
+                email: r.email,
+                kyc_status: r.kyc_status,
+                kyc_level: r.kyc_level,
+                two_factor_enabled: r.two_factor_enabled,
+                status: r.status,
+            }))
+        }
     }
 
     /// 根据邮箱查找用户

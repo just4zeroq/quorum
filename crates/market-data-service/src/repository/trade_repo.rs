@@ -1,7 +1,14 @@
 //! Trade Repository
 
 use sqlx::{PgPool, Row};
-use crate::models::Trade;
+use crate::models::{Trade, TradeSide};
+
+fn parse_side(s: &str) -> TradeSide {
+    match s.to_lowercase().as_str() {
+        "buy" => TradeSide::Buy,
+        _ => TradeSide::Sell,
+    }
+}
 
 pub struct TradeRepository;
 
@@ -49,16 +56,25 @@ impl TradeRepository {
 
         let mut trades = Vec::new();
         for row in rows {
+            let id: i64 = row.get("id");
+            let side_str: String = row.get("side");
+            let fee: rust_decimal::Decimal = row.get::<String, _>("fee").parse().unwrap_or_default();
             trades.push(Trade {
-                id: row.get("id"),
+                id: id.to_string(),
+                trade_id: id.to_string(),
+                order_id: String::new(),
+                counter_order_id: String::new(),
                 market_id: row.get("market_id"),
                 outcome_id: row.get("outcome_id"),
-                user_id: row.get("user_id"),
-                side: row.get("side"),
+                maker_user_id: row.get("user_id"),
+                taker_user_id: row.get("user_id"),
+                side: parse_side(&side_str),
                 price: row.get::<String, _>("price").parse().unwrap_or_default(),
                 quantity: row.get::<String, _>("quantity").parse().unwrap_or_default(),
                 amount: row.get::<String, _>("amount").parse().unwrap_or_default(),
-                fee: row.get::<String, _>("fee").parse().unwrap_or_default(),
+                maker_fee: fee,
+                taker_fee: fee,
+                fee_token: "USDC".to_string(),
                 created_at: row.get("created_at"),
             });
         }
@@ -77,12 +93,12 @@ impl TradeRepository {
         )
         .bind(trade.market_id)
         .bind(trade.outcome_id)
-        .bind(trade.user_id)
-        .bind(&trade.side)
+        .bind(trade.taker_user_id)
+        .bind(trade.side.to_string())
         .bind(&trade.price.to_string())
         .bind(&trade.quantity.to_string())
         .bind(&trade.amount.to_string())
-        .bind(&trade.fee.to_string())
+        .bind(&trade.taker_fee.to_string())
         .bind(trade.created_at)
         .fetch_one(pool)
         .await?;

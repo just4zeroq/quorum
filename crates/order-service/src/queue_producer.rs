@@ -1,8 +1,8 @@
-//! Kafka Producer - 发布订单命令
+//! Queue Producer - 发布订单命令
 
-use common::queue::{MessageProducer, ProducerManager, ProducerError, Message};
+use queue::{MessageProducer, ProducerManager, ProducerError, Message};
 use crate::models::Order;
-use tracing::{info, error};
+use tracing::info;
 
 /// 订单命令生产者
 pub struct OrderCommandProducer {
@@ -42,12 +42,11 @@ impl OrderCommandProducer {
         };
 
         let json = serde_json::to_string(&cmd)
-            .map_err(|e| ProducerError::Serialize(e.to_string()))?;
+            .map_err(|e| ProducerError::Serialization(e))?;
 
         let msg = Message {
             key: Some(order.id.clone()),
             value: json,
-            headers: Default::default(),
         };
 
         self.producer.send("order.commands", msg).await?;
@@ -71,12 +70,11 @@ impl OrderCommandProducer {
         };
 
         let json = serde_json::to_string(&cmd)
-            .map_err(|e| ProducerError::Serialize(e.to_string()))?;
+            .map_err(|e| ProducerError::Serialization(e))?;
 
         let msg = Message {
             key: Some(order_id.to_string()),
             value: json,
-            headers: Default::default(),
         };
 
         self.producer.send("order.commands", msg).await?;

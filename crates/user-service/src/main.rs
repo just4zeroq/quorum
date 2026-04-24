@@ -1,6 +1,6 @@
-//! User Service 主程序
+//! User Service 主程序 (gRPC)
 
-use user_service::{Config, Server};
+use user_service::{Config, UserGrpcServer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -28,8 +28,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    // 创建并运行服务
-    let server = Server::new(config).await?;
+    // 创建并运行 gRPC 服务
+    let server = UserGrpcServer::new(config).await?;
     server.run().await?;
 
     Ok(())

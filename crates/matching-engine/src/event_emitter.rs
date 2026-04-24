@@ -1,4 +1,4 @@
-//! Event Emitter - Kafka 事件发布
+//! Event Emitter - Queue 事件发布
 
 use std::sync::Arc;
 use queue::{ProducerManager, ProducerError, Message};

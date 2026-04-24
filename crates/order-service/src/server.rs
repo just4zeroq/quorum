@@ -7,8 +7,8 @@ use tonic_reflection::server::Builder;
 use crate::config::Config;
 use crate::services::OrderServiceImpl;
 use crate::pb::order_service_server::OrderServiceServer;
-use crate::kafka_consumer::MatchEventConsumer;
-use crate::kafka_producer::OrderCommandProducer;
+use crate::queue_consumer::MatchEventConsumer;
+use crate::queue_producer::OrderCommandProducer;
 use db::{DBPool, Config as DBConfig};
 use queue::{ConsumerManager, ProducerManager, Config as QueueConfig};
 use crate::repository::OrderRepository;
@@ -16,8 +16,8 @@ use crate::repository::OrderRepository;
 pub struct OrderServer {
     config: Config,
     pool: DBPool,
-    kafka_consumer: Option<MatchEventConsumer>,
-    kafka_producer: Option<OrderCommandProducer>,
+    queue_consumer: Option<MatchEventConsumer>,
+    queue_producer: Option<OrderCommandProducer>,
 }
 
 impl OrderServer {
@@ -30,7 +30,7 @@ impl OrderServer {
         // 初始化表
         Self::init_tables(&pool).await?;
 
-        // 初始化 Kafka
+        // 初始化队列
         let queue_config = QueueConfig {
             backend: Some(config.queue.backend.clone()),
             host: Some("localhost".to_string()),
@@ -44,29 +44,29 @@ impl OrderServer {
         };
         let merged_config = queue_config.merge();
 
-        // 创建 Kafka Producer
+        // 创建 Queue Producer
         let producer = ProducerManager::new(merged_config.clone());
         producer.init().await.map_err(|e| format!("Failed to init producer: {}", e))?;
-        let kafka_producer = OrderCommandProducer::new(producer);
+        let queue_producer = OrderCommandProducer::new(producer);
 
-        // 创建 Kafka Consumer
+        // 创建 Queue Consumer
         let consumer = ConsumerManager::new(merged_config, vec!["match.events".to_string()]);
         consumer.init().await.map_err(|e| format!("Failed to init consumer: {}", e))?;
         let order_repo = OrderRepository::new(pool.clone());
-        let kafka_consumer = MatchEventConsumer::new(consumer, order_repo);
+        let queue_consumer = MatchEventConsumer::new(consumer, order_repo);
 
         Ok(Self {
             config,
             pool,
-            kafka_consumer: Some(kafka_consumer),
-            kafka_producer: Some(kafka_producer),
+            queue_consumer: Some(queue_consumer),
+            queue_producer: Some(queue_producer),
         })
     }
 
     pub async fn run(mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // 创建服务，注入 Kafka Producer
-        let order_service = if let Some(producer) = self.kafka_producer.take() {
-            OrderServiceImpl::new(self.pool.clone()).with_kafka_producer(producer)
+        // 创建服务，注入 Queue Producer
+        let order_service = if let Some(producer) = self.queue_producer.take() {
+            OrderServiceImpl::new(self.pool.clone()).with_queue_producer(producer)
         } else {
             OrderServiceImpl::new(self.pool.clone())
         };
@@ -81,12 +81,12 @@ impl OrderServer {
             .register_encoded_file_descriptor_set(include_bytes!("pb/order_service.desc"))
             .build_v1()?;
 
-        // 启动 Kafka 消费者
-        if let Some(consumer) = self.kafka_consumer.take() {
+        // 启动 Queue 消费者
+        if let Some(consumer) = self.queue_consumer.take() {
             let handle = tokio::spawn(async move {
                 consumer.start().await;
             });
-            tracing::info!("Kafka consumer started for match.events");
+            tracing::info!("Queue consumer started for match.events");
         }
 
         // 构建 gRPC 服务器

@@ -4,7 +4,7 @@
 
 mod server;
 mod session;
-mod kafka_consumer;
+mod queue_consumer;
 
 use std::sync::Arc;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -37,7 +37,7 @@ async fn main() {
         "market.trade".to_string(),
         "market.ticker".to_string(),
     ];
-    let handler = Arc::new(kafka_consumer::MarketDataHandler::new(
+    let handler = Arc::new(queue_consumer::MarketDataHandler::new(
         session_manager.clone(),
         topics,
     ));

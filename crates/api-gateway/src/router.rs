@@ -21,7 +21,9 @@ pub fn create_router() -> Router {
         .push(Router::with_path("/api/v1/users")
             .push(Router::with_path("/register").post(register))
             .push(Router::with_path("/login").post(login))
-            .push(Router::with_path("/me").get(get_current_user))
+            .push(Router::with_path("/refresh").post(refresh_token))
+            .push(Router::with_path("/logout").post(logout).hoop(auth))
+            .push(Router::with_path("/me").get(get_current_user).hoop(auth))
         )
 
         // 订单相关（需要认证）
@@ -41,6 +43,14 @@ pub fn create_router() -> Router {
         .push(Router::with_path("/api/v1/positions")
             .hoop(auth)
             .push(Router::with_path("").get(get_positions))
+        )
+
+        // 预测市场相关（公开）
+        .push(Router::with_path("/api/v1/markets")
+            .push(Router::with_path("").get(list_markets))
+            .push(Router::with_path("/<market_id>").get(get_market))
+            .push(Router::with_path("/<market_id>/outcomes").get(get_market_outcomes))
+            .push(Router::with_path("/<market_id>/price").get(get_market_price))
         )
 
         // 行情相关（公开）

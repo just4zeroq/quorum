@@ -3,7 +3,7 @@
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::grpc::{create_user_client, create_order_client, GrpcConfig};
+use crate::grpc::{create_user_client, create_order_client, create_auth_client, GrpcConfig};
 
 /// 健康检查
 #[handler]
@@ -122,9 +122,9 @@ pub async fn login(req: &mut Request, _depot: &mut Depot, res: &mut Response) ->
             StatusCode::BAD_REQUEST
         })?;
 
-    // 调用 User Service gRPC 验证登录
+    // 步骤1: 调用 User Service 验证邮箱/密码并获取 user_id
     let config = GrpcConfig::default();
-    match create_user_client(config.user_service_addr).await {
+    let user_id = match create_user_client(config.user_service_addr.clone()).await {
         Ok(mut client) => {
             let grpc_request = api::user::LoginRequest {
                 email: payload.email.clone(),
@@ -138,17 +138,8 @@ pub async fn login(req: &mut Request, _depot: &mut Depot, res: &mut Response) ->
             match client.login(grpc_request).await {
                 Ok(resp) => {
                     let user_data = resp.into_inner();
-                    tracing::info!("User logged in: {}", payload.email);
-
-                    res.render(Json(LoginResponse {
-                        success: true,
-                        token: Some(user_data.token),
-                        refresh_token: Some(user_data.refresh_token),
-                        expires_in: Some(user_data.expires_at),
-                        token_type: Some("Bearer".to_string()),
-                        user_id: Some(user_data.user_id),
-                        message: None,
-                    }));
+                    tracing::info!("User verified: {}", payload.email);
+                    user_data.user_id
                 }
                 Err(e) => {
                     tracing::error!("User service login failed: {:?}", e);
@@ -162,6 +153,7 @@ pub async fn login(req: &mut Request, _depot: &mut Depot, res: &mut Response) ->
                         user_id: None,
                         message: Some("Invalid credentials".to_string()),
                     }));
+                    return Ok(());
                 }
             }
         }
@@ -176,6 +168,189 @@ pub async fn login(req: &mut Request, _depot: &mut Depot, res: &mut Response) ->
                 token_type: None,
                 user_id: None,
                 message: Some("Service unavailable".to_string()),
+            }));
+            return Ok(());
+        }
+    };
+
+    // 步骤2: 调用 Auth Service 生成 JWT Token
+    match create_auth_client(config.auth_service_addr).await {
+        Ok(mut client) => {
+            let auth_request = api::auth::LoginRequest {
+                user_id: user_id.clone(),
+                password: String::new(), // Auth Service MVP 不校验密码，由 User Service 校验
+                device_id: String::new(),
+                ip_address: String::new(),
+                user_agent: String::new(),
+            };
+
+            match client.login(auth_request).await {
+                Ok(resp) => {
+                    let auth_data = resp.into_inner();
+                    tracing::info!("Auth tokens issued for user: {}", user_id);
+
+                    res.render(Json(LoginResponse {
+                        success: true,
+                        token: Some(auth_data.access_token),
+                        refresh_token: Some(auth_data.refresh_token),
+                        expires_in: Some(auth_data.expires_in),
+                        token_type: Some(auth_data.token_type),
+                        user_id: Some(user_id),
+                        message: None,
+                    }));
+                }
+                Err(e) => {
+                    tracing::error!("Auth service login failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(LoginResponse {
+                        success: false,
+                        token: None,
+                        refresh_token: None,
+                        expires_in: None,
+                        token_type: None,
+                        user_id: None,
+                        message: Some("Authentication service error".to_string()),
+                    }));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to auth service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(LoginResponse {
+                success: false,
+                token: None,
+                refresh_token: None,
+                expires_in: None,
+                token_type: None,
+                user_id: None,
+                message: Some("Auth service unavailable".to_string()),
+            }));
+        }
+    }
+
+    Ok(())
+}
+
+// ========== 认证相关 (Auth Service) ==========
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct LogoutResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+#[handler]
+pub async fn logout(_req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
+    let session_id = match depot.get::<String>("session_id") {
+        Ok(sid) => sid.clone(),
+        Err(_) => {
+            res.status_code(StatusCode::UNAUTHORIZED);
+            res.render(Json(LogoutResponse {
+                success: false,
+                message: "Unauthorized".to_string(),
+            }));
+            return Ok(());
+        }
+    };
+
+    let config = GrpcConfig::default();
+    match create_auth_client(config.auth_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::auth::LogoutRequest { session_id: session_id.clone() };
+            match client.logout(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    res.render(Json(LogoutResponse {
+                        success: data.success,
+                        message: if data.success { "Logged out successfully".to_string() } else { "Logout failed".to_string() },
+                    }));
+                }
+                Err(e) => {
+                    tracing::error!("Auth service logout failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(LogoutResponse {
+                        success: false,
+                        message: "Auth service error".to_string(),
+                    }));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to auth service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(LogoutResponse {
+                success: false,
+                message: "Auth service unavailable".to_string(),
+            }));
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RefreshTokenRequest {
+    pub refresh_token: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RefreshTokenResponse {
+    pub success: bool,
+    pub access_token: Option<String>,
+    pub expires_in: Option<i64>,
+    pub token_type: Option<String>,
+    pub message: Option<String>,
+}
+
+#[handler]
+pub async fn refresh_token(req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
+    let payload = req.parse_json::<RefreshTokenRequest>().await
+        .map_err(|e| {
+            tracing::error!("Failed to parse refresh request: {}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+
+    let config = GrpcConfig::default();
+    match create_auth_client(config.auth_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::auth::RefreshTokenRequest {
+                refresh_token: payload.refresh_token,
+            };
+
+            match client.refresh_token(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    res.render(Json(RefreshTokenResponse {
+                        success: true,
+                        access_token: Some(data.access_token),
+                        expires_in: Some(data.expires_in),
+                        token_type: Some("Bearer".to_string()),
+                        message: None,
+                    }));
+                }
+                Err(e) => {
+                    tracing::error!("Auth service refresh_token failed: {:?}", e);
+                    res.status_code(StatusCode::UNAUTHORIZED);
+                    res.render(Json(RefreshTokenResponse {
+                        success: false,
+                        access_token: None,
+                        expires_in: None,
+                        token_type: None,
+                        message: Some("Invalid or expired refresh token".to_string()),
+                    }));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to auth service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(RefreshTokenResponse {
+                success: false,
+                access_token: None,
+                expires_in: None,
+                token_type: None,
+                message: Some("Auth service unavailable".to_string()),
             }));
         }
     }
@@ -192,9 +367,17 @@ pub struct UserResponse {
 
 #[handler]
 pub async fn get_current_user(_req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
-    let user_id = depot.get::<String>("user_id")
-        .map(|v| v.to_string())
-        .unwrap_or_else(|_| "unknown".to_string());
+    let user_id = match depot.get::<String>("user_id") {
+        Ok(uid) => uid.clone(),
+        Err(_) => {
+            res.status_code(StatusCode::UNAUTHORIZED);
+            res.render(Json(serde_json::json!({
+                "success": false,
+                "error": "Unauthorized"
+            })));
+            return Ok(());
+        }
+    };
 
     // 调用 User Service gRPC 获取用户信息
     let config = GrpcConfig::default();
@@ -576,8 +759,7 @@ pub async fn get_positions(_req: &mut Request, depot: &mut Depot, res: &mut Resp
 #[derive(Debug, Deserialize, Default)]
 pub struct DepthQuery {
     pub market_id: Option<u64>,
-    pub outcome_id: Option<u64>,
-    pub limit: Option<usize>,
+    pub depth: Option<i32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -589,27 +771,37 @@ pub struct DepthResponse {
 #[handler]
 pub async fn get_depth(req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
     let query = req.parse_queries::<DepthQuery>().unwrap_or_default();
-    let _market_id = query.market_id.unwrap_or(1);
-    let _outcome_id = query.outcome_id.unwrap_or(1);
-    let limit = query.limit.unwrap_or(20);
+    let market_id = query.market_id.unwrap_or(1) as i64;
+    let depth = query.depth.unwrap_or(20);
 
-    // TODO: 调用 Market Data Service gRPC
-    // 模拟订单簿数据
-    let asks: Vec<Vec<String>> = (0..limit.min(10))
-        .map(|i| vec![
-            format!("{:.2}", 0.50 + i as f64 * 0.01),
-            format!("{}", 100 + i * 50)
-        ])
-        .collect();
+    let config = crate::grpc::GrpcConfig::default();
+    match crate::grpc::create_market_data_client(config.market_data_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::market_data::GetOrderBookRequest {
+                market_id,
+                depth,
+            };
 
-    let bids: Vec<Vec<String>> = (0..limit.min(10))
-        .map(|i| vec![
-            format!("{:.2}", 0.49 - i as f64 * 0.01),
-            format!("{}", 100 + i * 50)
-        ])
-        .collect();
-
-    res.render(Json(DepthResponse { asks, bids }));
+            match client.get_order_book(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    let asks: Vec<Vec<String>> = data.asks.iter().map(|a| vec![a.price.clone(), a.quantity.clone()]).collect();
+                    let bids: Vec<Vec<String>> = data.bids.iter().map(|b| vec![b.price.clone(), b.quantity.clone()]).collect();
+                    res.render(Json(DepthResponse { asks, bids }));
+                }
+                Err(e) => {
+                    tracing::error!("Market data get_order_book failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to market data service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Market data service unavailable"})));
+        }
+    }
 
     Ok(())
 }
@@ -617,58 +809,196 @@ pub async fn get_depth(req: &mut Request, _depot: &mut Depot, res: &mut Response
 #[derive(Debug, Deserialize, Default)]
 pub struct TickerQuery {
     pub market_id: Option<u64>,
-    pub outcome_id: Option<u64>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct TickerResponse {
     pub market_id: u64,
-    pub outcome_id: u64,
-    pub last_price: String,
+    pub volume_24h: String,
+    pub amount_24h: String,
+    pub high_24h: String,
+    pub low_5h: String,
     pub price_change: String,
     pub price_change_percent: String,
-    pub high_price: String,
-    pub low_price: String,
-    pub volume: String,
-    pub quote_volume: String,
-    pub timestamp: String,
+    pub trade_count_24h: i64,
+    pub timestamp: i64,
 }
 
 #[handler]
 pub async fn get_ticker(req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
     let query = req.parse_queries::<TickerQuery>().unwrap_or_default();
-    let market_id = query.market_id.unwrap_or(1);
-    let outcome_id = query.outcome_id.unwrap_or(1);
+    let market_id = query.market_id.unwrap_or(1) as i64;
 
-    // TODO: 调用 Market Data Service gRPC
-    res.render(Json(TickerResponse {
-        market_id,
-        outcome_id,
-        last_price: "0.55".to_string(),
-        price_change: "+0.05".to_string(),
-        price_change_percent: "+10.00%".to_string(),
-        high_price: "0.60".to_string(),
-        low_price: "0.45".to_string(),
-        volume: "1000000".to_string(),
-        quote_volume: "550000".to_string(),
-        timestamp: chrono::Utc::now().to_rfc3339(),
-    }));
+    let config = crate::grpc::GrpcConfig::default();
+    match crate::grpc::create_market_data_client(config.market_data_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::market_data::Get24hStatsRequest {
+                market_id,
+            };
+
+            match client.get24h_stats(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    res.render(Json(TickerResponse {
+                        market_id: market_id as u64,
+                        volume_24h: data.volume_24h,
+                        amount_24h: data.amount_24h,
+                        high_24h: data.high_24h,
+                        low_5h: data.low_5h,
+                        price_change: data.price_change,
+                        price_change_percent: data.price_change_percent,
+                        trade_count_24h: data.trade_count_24h,
+                        timestamp: data.timestamp,
+                    }));
+                }
+                Err(e) => {
+                    tracing::error!("Market data get24h_stats failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to market data service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Market data service unavailable"})));
+        }
+    }
 
     Ok(())
 }
 
+#[derive(Debug, Deserialize, Default)]
+pub struct KlineQuery {
+    pub market_id: Option<u64>,
+    pub interval: Option<String>,
+    pub start_time: Option<i64>,
+    pub end_time: Option<i64>,
+    pub limit: Option<i32>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct KlineResponse {
+    pub timestamp: i64,
+    pub open: String,
+    pub high: String,
+    pub low: String,
+    pub close: String,
+    pub volume: String,
+}
+
 #[handler]
-pub async fn get_kline(_req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
-    // TODO: 调用 Market Data Service gRPC
-    res.render(Json(Vec::<serde_json::Value>::new()));
+pub async fn get_kline(req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
+    let query = req.parse_queries::<KlineQuery>().unwrap_or_default();
+    let market_id = query.market_id.unwrap_or(1) as i64;
+    let interval = query.interval.unwrap_or_else(|| "1h".to_string());
+    let start_time = query.start_time.unwrap_or(0);
+    let end_time = query.end_time.unwrap_or(0);
+    let limit = query.limit.unwrap_or(100);
+
+    let config = crate::grpc::GrpcConfig::default();
+    match crate::grpc::create_market_data_client(config.market_data_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::market_data::GetKlinesRequest {
+                market_id,
+                interval,
+                start_time,
+                end_time,
+                limit,
+            };
+
+            match client.get_klines(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    let klines: Vec<KlineResponse> = data.klines.into_iter().map(|k| KlineResponse {
+                        timestamp: k.timestamp,
+                        open: k.open,
+                        high: k.high,
+                        low: k.low,
+                        close: k.close,
+                        volume: k.volume,
+                    }).collect();
+                    res.render(Json(klines));
+                }
+                Err(e) => {
+                    tracing::error!("Market data get_klines failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to market data service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Market data service unavailable"})));
+        }
+    }
 
     Ok(())
 }
 
+#[derive(Debug, Deserialize, Default)]
+pub struct TradesQuery {
+    pub market_id: Option<u64>,
+    pub outcome_id: Option<u64>,
+    pub limit: Option<i32>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TradeResponse {
+    pub trade_id: i64,
+    pub market_id: i64,
+    pub outcome_id: i64,
+    pub price: String,
+    pub quantity: String,
+    pub side: String,
+    pub timestamp: i64,
+}
+
 #[handler]
-pub async fn get_recent_trades(_req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
-    // TODO: 调用 Market Data Service gRPC
-    res.render(Json(Vec::<serde_json::Value>::new()));
+pub async fn get_recent_trades(req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
+    let query = req.parse_queries::<TradesQuery>().unwrap_or_default();
+    let market_id = query.market_id.unwrap_or(1) as i64;
+    let outcome_id = query.outcome_id.unwrap_or(0) as i64;
+    let limit = query.limit.unwrap_or(50);
+
+    let config = crate::grpc::GrpcConfig::default();
+    match crate::grpc::create_market_data_client(config.market_data_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::market_data::GetRecentTradesRequest {
+                market_id,
+                outcome_id,
+                limit,
+                from_trade_id: 0,
+            };
+
+            match client.get_recent_trades(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    let trades: Vec<TradeResponse> = data.trades.into_iter().map(|t| TradeResponse {
+                        trade_id: t.id,
+                        market_id: t.market_id,
+                        outcome_id: t.outcome_id,
+                        price: t.price,
+                        quantity: t.quantity,
+                        side: t.side,
+                        timestamp: t.timestamp,
+                    }).collect();
+                    res.render(Json(trades));
+                }
+                Err(e) => {
+                    tracing::error!("Market data get_recent_trades failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to market data service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Market data service unavailable"})));
+        }
+    }
 
     Ok(())
 }
@@ -842,6 +1172,257 @@ pub async fn get_wallet_history(req: &mut Request, depot: &mut Depot, res: &mut 
         deposits: Vec::new(),
         withdrawals: Vec::new(),
     }));
+
+    Ok(())
+}
+
+// ========== 预测市场相关 ==========
+
+#[derive(Debug, Deserialize, Default)]
+pub struct ListMarketsQuery {
+    pub category: Option<String>,
+    pub status: Option<String>,
+    pub page: Option<i32>,
+    pub page_size: Option<i32>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MarketSummaryResponse {
+    pub id: i64,
+    pub question: String,
+    pub description: String,
+    pub category: String,
+    pub image_url: String,
+    pub start_time: i64,
+    pub end_time: i64,
+    pub status: String,
+    pub resolved_outcome_id: i64,
+    pub total_volume: String,
+    pub created_at: i64,
+}
+
+#[handler]
+pub async fn list_markets(req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
+    let query = req.parse_queries::<ListMarketsQuery>().unwrap_or_default();
+    let category = query.category.unwrap_or_default();
+    let status = query.status.unwrap_or_default();
+    let page = query.page.unwrap_or(1);
+    let page_size = query.page_size.unwrap_or(20);
+
+    let config = crate::grpc::GrpcConfig::default();
+    match crate::grpc::create_prediction_market_client(config.prediction_market_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::prediction_market::ListMarketsRequest {
+                category: category.clone(),
+                status: status.clone(),
+                page,
+                page_size,
+            };
+
+            match client.list_markets(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    let markets: Vec<MarketSummaryResponse> = data.markets.into_iter().map(|m| MarketSummaryResponse {
+                        id: m.id,
+                        question: m.question,
+                        description: m.description,
+                        category: m.category,
+                        image_url: m.image_url,
+                        start_time: m.start_time,
+                        end_time: m.end_time,
+                        status: m.status,
+                        resolved_outcome_id: m.resolved_outcome_id,
+                        total_volume: m.total_volume,
+                        created_at: m.created_at,
+                    }).collect();
+
+                    res.render(Json(serde_json::json!({
+                        "markets": markets,
+                        "total": data.total,
+                        "page": data.page,
+                        "page_size": data.page_size,
+                    })));
+                }
+                Err(e) => {
+                    tracing::error!("Prediction market list_markets failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to prediction market service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Prediction market service unavailable"})));
+        }
+    }
+
+    Ok(())
+}
+
+#[handler]
+pub async fn get_market(req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
+    let market_id = req.param::<i64>("market_id")
+        .unwrap_or(0);
+
+    if market_id == 0 {
+        res.status_code(StatusCode::BAD_REQUEST);
+        res.render(Json(serde_json::json!({"error": "Invalid market_id"})));
+        return Ok(());
+    }
+
+    let config = crate::grpc::GrpcConfig::default();
+    match crate::grpc::create_prediction_market_client(config.prediction_market_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::prediction_market::GetMarketRequest { market_id };
+
+            match client.get_market(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    let market = data.market.as_ref().map(|m| serde_json::json!({
+                        "id": m.id,
+                        "question": m.question,
+                        "description": m.description,
+                        "category": m.category,
+                        "image_url": m.image_url,
+                        "start_time": m.start_time,
+                        "end_time": m.end_time,
+                        "status": m.status,
+                        "resolved_outcome_id": m.resolved_outcome_id,
+                        "resolved_at": m.resolved_at,
+                        "total_volume": m.total_volume,
+                        "created_at": m.created_at,
+                    }));
+                    let outcomes: Vec<serde_json::Value> = data.outcomes.iter().map(|o| serde_json::json!({
+                        "id": o.id,
+                        "market_id": o.market_id,
+                        "name": o.name,
+                        "description": o.description,
+                        "image_url": o.image_url,
+                        "price": o.price,
+                        "volume": o.volume,
+                        "probability": o.probability,
+                        "created_at": o.created_at,
+                        "updated_at": o.updated_at,
+                    })).collect();
+                    res.render(Json(serde_json::json!({
+                        "market": market,
+                        "outcomes": outcomes,
+                    })));
+                }
+                Err(e) => {
+                    tracing::error!("Prediction market get_market failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to prediction market service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Prediction market service unavailable"})));
+        }
+    }
+
+    Ok(())
+}
+
+#[handler]
+pub async fn get_market_outcomes(req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
+    let market_id = req.param::<i64>("market_id")
+        .unwrap_or(0);
+
+    if market_id == 0 {
+        res.status_code(StatusCode::BAD_REQUEST);
+        res.render(Json(serde_json::json!({"error": "Invalid market_id"})));
+        return Ok(());
+    }
+
+    let config = crate::grpc::GrpcConfig::default();
+    match crate::grpc::create_prediction_market_client(config.prediction_market_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::prediction_market::GetOutcomesRequest { market_id };
+
+            match client.get_outcomes(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    let outcomes: Vec<serde_json::Value> = data.outcomes.iter().map(|o| serde_json::json!({
+                        "id": o.id,
+                        "market_id": o.market_id,
+                        "name": o.name,
+                        "description": o.description,
+                        "image_url": o.image_url,
+                        "price": o.price,
+                        "volume": o.volume,
+                        "probability": o.probability,
+                        "created_at": o.created_at,
+                        "updated_at": o.updated_at,
+                    })).collect();
+                    res.render(Json(serde_json::json!({
+                        "outcomes": outcomes,
+                    })));
+                }
+                Err(e) => {
+                    tracing::error!("Prediction market get_outcomes failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to prediction market service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Prediction market service unavailable"})));
+        }
+    }
+
+    Ok(())
+}
+
+#[handler]
+pub async fn get_market_price(req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
+    let market_id = req.param::<i64>("market_id")
+        .unwrap_or(0);
+
+    if market_id == 0 {
+        res.status_code(StatusCode::BAD_REQUEST);
+        res.render(Json(serde_json::json!({"error": "Invalid market_id"})));
+        return Ok(());
+    }
+
+    let config = crate::grpc::GrpcConfig::default();
+    match crate::grpc::create_prediction_market_client(config.prediction_market_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::prediction_market::GetMarketPriceRequest { market_id };
+
+            match client.get_market_price(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    let prices: Vec<serde_json::Value> = data.prices.iter().map(|p| serde_json::json!({
+                        "outcome_id": p.outcome_id,
+                        "name": p.name,
+                        "price": p.price,
+                        "volume": p.volume,
+                        "probability": p.probability,
+                    })).collect();
+                    res.render(Json(serde_json::json!({
+                        "market_id": data.market_id,
+                        "prices": prices,
+                    })));
+                }
+                Err(e) => {
+                    tracing::error!("Prediction market get_market_price failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to prediction market service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Prediction market service unavailable"})));
+        }
+    }
 
     Ok(())
 }

@@ -183,19 +183,48 @@ impl OrderRepository {
     fn row_to_order(row: &SqliteRow) -> Order {
         use rust_decimal::Decimal;
         use std::str::FromStr;
+        use crate::models::{OrderStatus, OrderSide, OrderType};
+
+        let side_str: String = row.get("side");
+        let order_type_str: String = row.get("order_type");
+        let status_str: String = row.get("status");
+
+        let side = match side_str.as_str() {
+            "buy" => OrderSide::Buy,
+            _ => OrderSide::Sell,
+        };
+
+        let order_type = match order_type_str.as_str() {
+            "limit" => OrderType::Limit,
+            "market" => OrderType::Market,
+            "ioc" => OrderType::IOC,
+            "fok" => OrderType::FOK,
+            "post_only" => OrderType::PostOnly,
+            _ => OrderType::Limit,
+        };
+
+        let status = match status_str.as_str() {
+            "pending" => OrderStatus::Pending,
+            "submitted" => OrderStatus::Submitted,
+            "partially_filled" => OrderStatus::PartiallyFilled,
+            "filled" => OrderStatus::Filled,
+            "cancelled" => OrderStatus::Cancelled,
+            "rejected" => OrderStatus::Rejected,
+            _ => OrderStatus::Pending,
+        };
 
         Order {
             id: row.get("id"),
             user_id: row.get("user_id"),
             market_id: row.get("market_id"),
             outcome_id: row.get("outcome_id"),
-            side: row.get("side"),
-            order_type: row.get("order_type"),
+            side,
+            order_type,
             price: Decimal::from_str(&row.get::<String, _>("price")).unwrap_or_default(),
             quantity: Decimal::from_str(&row.get::<String, _>("quantity")).unwrap_or_default(),
             filled_quantity: Decimal::from_str(&row.get::<String, _>("filled_quantity")).unwrap_or_default(),
             filled_amount: Decimal::from_str(&row.get::<String, _>("filled_amount")).unwrap_or_default(),
-            status: row.get("status"),
+            status,
             client_order_id: row.get("client_order_id"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),

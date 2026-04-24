@@ -3,7 +3,6 @@
 use salvo::prelude::*;
 use salvo::cors::{Cors, CorsHandler};
 use salvo::hyper::Method;
-use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
 /// JWT Claims
@@ -45,41 +44,47 @@ pub async fn auth(req: &mut Request, depot: &mut Depot, res: &mut Response) {
         Some(header) if header.starts_with("Bearer ") => {
             let token = &header[7..];
 
-            // JWT secret - 在生产环境应该从配置读取
-            let jwt_secret = std::env::var("JWT_SECRET")
-                .unwrap_or_else(|_| "your-secret-key".to_string());
+            // Auth Service 地址
+            let auth_addr = std::env::var("AUTH_SERVICE_ADDR")
+                .unwrap_or_else(|_| "http://127.0.0.1:50009".to_string());
 
-            match decode::<Claims>(
-                token,
-                &DecodingKey::from_secret(jwt_secret.as_bytes()),
-                &Validation::default(),
-            ) {
-                Ok(token_data) => {
-                    // Token 有效，提取 user_id
-                    let claims = token_data.claims;
+            match crate::grpc::create_auth_client(auth_addr).await {
+                Ok(mut client) => {
+                    let request = tonic::Request::new(api::auth::ValidateTokenRequest {
+                        token: token.to_string(),
+                    });
 
-                    // 检查 token 类型
-                    if claims.ttype != "access" {
-                        res.status_code(StatusCode::UNAUTHORIZED);
-                        res.render(Json(serde_json::json!({
-                            "success": false,
-                            "error": "Invalid token type"
-                        })));
-                        return;
+                    match client.validate_token(request).await {
+                        Ok(response) => {
+                            let validate_resp = response.into_inner();
+                            if validate_resp.valid {
+                                depot.insert("user_id", validate_resp.user_id.clone());
+                                depot.insert("session_id", validate_resp.session_id.clone());
+                                tracing::debug!("Authenticated user: {}", validate_resp.user_id);
+                            } else {
+                                res.status_code(StatusCode::UNAUTHORIZED);
+                                res.render(Json(serde_json::json!({
+                                    "success": false,
+                                    "error": "Invalid or expired token"
+                                })));
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!("Auth service validate token failed: {:?}", e);
+                            res.status_code(StatusCode::UNAUTHORIZED);
+                            res.render(Json(serde_json::json!({
+                                "success": false,
+                                "error": "Invalid or expired token"
+                            })));
+                        }
                     }
-
-                    // 将用户信息放入 depot
-                    depot.insert("user_id", claims.sub.clone());
-                    depot.insert("session_id", claims.sid.clone());
-
-                    tracing::debug!("Authenticated user: {}", claims.sub);
                 }
                 Err(e) => {
-                    tracing::warn!("JWT validation failed: {:?}", e);
-                    res.status_code(StatusCode::UNAUTHORIZED);
+                    tracing::error!("Failed to connect to auth service: {:?}", e);
+                    res.status_code(StatusCode::SERVICE_UNAVAILABLE);
                     res.render(Json(serde_json::json!({
                         "success": false,
-                        "error": "Invalid or expired token"
+                        "error": "Authentication service unavailable"
                     })));
                 }
             }

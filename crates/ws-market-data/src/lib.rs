@@ -4,4 +4,4 @@
 
 pub mod server;
 pub mod session;
-pub mod kafka_consumer;
+pub mod queue_consumer;

@@ -300,15 +300,15 @@ impl MarketDataService for MarketDataServiceImpl {
         let trade_data: Vec<TradeData> = trades
             .iter()
             .map(|t| TradeData {
-                id: t.id,
+                id: t.id.parse().unwrap_or(0),
                 market_id: t.market_id,
                 outcome_id: t.outcome_id,
-                user_id: t.user_id,
-                side: t.side.clone(),
+                user_id: t.taker_user_id,
+                side: t.side.to_string(),
                 price: t.price.to_string(),
                 quantity: t.quantity.to_string(),
                 amount: t.amount.to_string(),
-                fee: t.fee.to_string(),
+                fee: t.taker_fee.to_string(),
                 timestamp: t.created_at,
             })
             .collect();

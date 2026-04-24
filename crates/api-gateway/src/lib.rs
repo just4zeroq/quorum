@@ -10,4 +10,4 @@ pub mod grpc;
 pub use router::create_router;
 pub use middleware::{auth, rate_limit, log_request, cors_handler};
 pub use handlers::*;
-pub use grpc::{GrpcConfig, connect, create_user_client, create_order_client, create_auth_client};
+pub use grpc::{GrpcConfig, connect, create_user_client, create_order_client, create_auth_client, create_market_data_client, create_prediction_market_client};

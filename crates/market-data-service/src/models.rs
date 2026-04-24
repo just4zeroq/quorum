@@ -4,6 +4,7 @@
 
 pub use domain::market_data::model::{Market, Outcome, OrderBook, Kline, KlineInterval, OrderBookLevel};
 pub use domain::prediction_market::model::{PredictionMarket, MarketOutcome, MarketStatus};
+pub use domain::trade::model::{Trade, TradeSide};
 
 // Service-specific models
 use rust_decimal::Decimal;
