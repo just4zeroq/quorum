@@ -8,6 +8,7 @@
 4. [下单/挂单流程](#4-下单挂单流程)
 5. [取现流程](#5-取现流程)
 6. [WebSocket 实时数据](#6-websocket-实时数据)
+7. [预测市场业务流](#7-预测市场业务流)
 
 ---
 
@@ -687,3 +688,219 @@ Authorization: Bearer <token>
 | status | VARCHAR(20) | 状态 |
 | reviewed_at | TIMESTAMP | 审核时间 |
 | created_at | TIMESTAMP | 创建时间 |
+
+---
+
+## 7. 预测市场业务流
+
+### 7.1 市场生命周期
+
+预测市场从创建到结算的完整生命周期：
+
+```
+创建市场 -> 开放交易 -> 关闭市场 -> 结算市场 -> 赔付分发
+```
+
+#### 市场状态机
+
+```
+┌─────────┐    创建     ┌─────────┐    关闭    ┌─────────┐   结算   ┌───────────┐
+│  Draft  │────────────▶│  Open   │───────────▶│ Closed  │────────▶│ Resolved  │
+└─────────┘             └─────────┘            └─────────┘         └───────────┘
+                              │                                       │
+                              │ 取消                                  │ 取消
+                              ▼                                       ▼
+                        ┌───────────┐                           ┌───────────┐
+                        │ Cancelled │                           │ Cancelled │
+                        └───────────┘                           └───────────┘
+```
+
+| 状态 | 说明 | 允许操作 |
+|------|------|---------|
+| `open` | 开放交易 | 下单、撤单、添加选项 |
+| `closed` | 停止交易 | 等待结算，不可下单 |
+| `resolved` | 已结算 | 计算赔付、分发资金 |
+| `cancelled` | 已取消 | 退回冻结资金 |
+
+### 7.2 创建市场流程
+
+```
+管理员/运营              Prediction Market Service
+    │                              │
+    │  创建市场                    │
+    │  (问题/选项/时间)            │
+    │─────────────────────────────▶│
+    │                              │
+    │                              │  写入数据库
+    │                              │  prediction_markets
+    │                              │  market_outcomes
+    │                              │
+    │◄─────────────────────────────│
+    │   { market_id, outcomes }    │
+```
+
+**HTTP 接口:**
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| POST | `/api/v1/markets` | Admin | 创建市场 |
+
+**请求示例:**
+```json
+POST /api/v1/markets
+Authorization: Bearer <admin_token>
+{
+  "question": "Will BTC exceed $100k by end of 2024?",
+  "description": "Predict whether Bitcoin will surpass $100,000",
+  "category": "crypto",
+  "image_url": "https://...",
+  "start_time": 1704067200000,
+  "end_time": 1735689600000,
+  "outcomes": [
+    { "name": "Yes", "description": "BTC > $100k" },
+    { "name": "No", "description": "BTC <= $100k" }
+  ]
+}
+```
+
+### 7.3 市场查询流程
+
+```
+用户/前端              API Gateway         Prediction Market Service
+    │                       │                              │
+    │  查市场列表            │                              │
+    │──────────────────────▶│                              │
+    │                       │  gRPC ListMarkets            │
+    │                       │─────────────────────────────▶│
+    │                       │                              │
+    │                       │◄─────────────────────────────│
+    │                       │   markets[]                  │
+    │◄──────────────────────│                              │
+    │   { markets, total }  │                              │
+```
+
+**HTTP 接口:**
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| GET | `/api/v1/markets` | 否 | 市场列表 |
+| GET | `/api/v1/markets/{market_id}` | 否 | 市场详情 |
+| GET | `/api/v1/markets/{market_id}/outcomes` | 否 | 选项列表 |
+| GET | `/api/v1/markets/{market_id}/price` | 否 | 当前价格 |
+| GET | `/api/v1/markets/{market_id}/depth` | 否 | 订单簿深度 |
+
+### 7.4 关闭市场流程
+
+当市场到达结束时间或需要提前停止交易时：
+
+```
+管理员/系统            Prediction Market Service
+    │                              │
+    │  关闭市场                    │
+    │  (market_id)                 │
+    │─────────────────────────────▶│
+    │                              │
+    │                              │  更新状态: open -> closed
+    │                              │
+    │◄─────────────────────────────│
+    │   { success }                │
+    │                              │
+    │                              │  Kafka: market.closed
+    │                              │──────────▶ Matching Engine
+    │                              │            (停止接受新订单)
+```
+
+### 7.5 结算市场流程
+
+当事件结果确定后，管理员结算市场：
+
+```
+管理员                Prediction Market Service      Portfolio Service
+    │                              │                              │
+    │  结算市场                    │                              │
+    │  (winning_outcome_id)        │                              │
+    │─────────────────────────────▶│                              │
+    │                              │                              │
+    │                              │  更新状态: closed -> resolved│
+    │                              │                              │
+    │                              │  gRPC CalculatePayout        │
+    │                              │─────────────────────────────▶│
+    │                              │                              │
+    │                              │◄─────────────────────────────│
+    │                              │   payouts[]                  │
+    │                              │                              │
+    │                              │  Kafka: market.resolved      │
+    │                              │──────────▶ ws-market-data    │
+    │                              │            (推送结果)         │
+    │◄─────────────────────────────│                              │
+    │   { success, resolution }    │                              │
+```
+
+**结算规则（二元预测市场）:**
+- 获胜选项持有者：每份获得 1 USDC
+- 失败选项持有者：每份获得 0 USDC
+- 赔付 = 持仓数量 × 1 (如果持有获胜选项)
+
+**HTTP 接口:**
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| POST | `/api/v1/markets/{market_id}/resolve` | Admin | 结算市场 |
+| GET | `/api/v1/markets/{market_id}/payout` | JWT | 查询赔付 |
+
+### 7.6 用户持仓查询
+
+```
+用户/前端              API Gateway         Prediction Market Service
+    │                       │                              │
+    │  查我的持仓            │                              │
+    │──────────────────────▶│                              │
+    │                       │  gRPC GetUserPositions       │
+    │                       │  (user_id, market_id?)       │
+    │                       │─────────────────────────────▶│
+    │                       │                              │
+    │                       │◄─────────────────────────────│
+    │                       │   positions[]                │
+    │◄──────────────────────│                              │
+    │   { positions }       │                              │
+```
+
+**HTTP 接口:**
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| GET | `/api/v1/positions` | JWT | 用户所有持仓 |
+| GET | `/api/v1/positions?market_id=1` | JWT | 某市场持仓 |
+
+**响应示例:**
+```json
+{
+  "positions": [
+    {
+      "id": 1,
+      "market_id": 1,
+      "outcome_id": 1,
+      "quantity": "100",
+      "avg_price": "0.65",
+      "created_at": 1705312200000
+    }
+  ]
+}
+```
+
+### 7.7 gRPC 接口清单
+
+| 接口 | 服务 | 说明 |
+|------|------|------|
+| CreateMarket | PredictionMarketService | 创建市场 |
+| UpdateMarket | PredictionMarketService | 更新市场信息 |
+| CloseMarket | PredictionMarketService | 关闭市场 |
+| GetMarket | PredictionMarketService | 获取市场详情 |
+| ListMarkets | PredictionMarketService | 市场列表 |
+| AddOutcome | PredictionMarketService | 添加选项 |
+| GetOutcomes | PredictionMarketService | 获取选项 |
+| GetMarketPrice | PredictionMarketService | 获取价格 |
+| GetMarketDepth | PredictionMarketService | 获取深度 |
+| ResolveMarket | PredictionMarketService | 结算市场 |
+| CalculatePayout | PredictionMarketService | 计算赔付 |
+| GetUserPositions | PredictionMarketService | 用户持仓 |

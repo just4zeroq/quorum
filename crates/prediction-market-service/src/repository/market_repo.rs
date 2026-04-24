@@ -156,6 +156,38 @@ impl MarketRepository {
         Ok(())
     }
 
+    /// 更新市场信息
+    pub async fn update(
+        pool: &PgPool,
+        id: i64,
+        question: Option<&str>,
+        description: Option<&str>,
+        image_url: Option<&str>,
+        end_time: Option<i64>,
+    ) -> sqlx::Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE prediction_markets
+            SET question = COALESCE($1, question),
+                description = COALESCE($2, description),
+                image_url = COALESCE($3, image_url),
+                end_time = COALESCE($4, end_time),
+                updated_at = $5
+            WHERE id = $6
+            "#,
+        )
+        .bind(question)
+        .bind(description)
+        .bind(image_url)
+        .bind(end_time)
+        .bind(chrono::Utc::now().timestamp_millis())
+        .bind(id)
+        .execute(pool)
+        .await?;
+
+        Ok(())
+    }
+
     /// 更新市场成交量
     pub async fn add_volume(pool: &PgPool, id: i64, volume: &str) -> sqlx::Result<()> {
         sqlx::query(
