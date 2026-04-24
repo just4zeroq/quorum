@@ -580,3 +580,388 @@ pub use auth::auth_service_client::AuthServiceClient;
 - 服务名使用下划线: `user_service.proto`
 - 生成模块使用下划线: `pub mod user { include!("user.rs"); }`
 - 生成的 Client: `UserServiceClient`
+
+---
+
+## 公共组件规范
+
+### common/db - 数据库组件
+
+```
+common/db/
+├── src/
+│   ├── lib.rs          # 模块导出
+│   ├── pool.rs         # DBPool / DBManager
+│   └── config.rs       # 配置
+```
+
+**核心类型:**
+- `DBPool` - 统一连接池 (`Postgres(PgPool)` | `Sqlite(SqlitePool)`)
+- `DBManager` - 连接池管理器 (`init` / `get_pool` / `close`)
+- `DBError` - 数据库错误枚举
+
+**使用方式:**
+```rust
+use db::{DBManager, DBPool, Result};
+
+let manager = DBManager::new(config);
+manager.init().await?;
+
+if let Some(pool) = manager.get_pool().await {
+    match pool {
+        DBPool::Postgres(pg) => { /* 使用 PgPool */ }
+        DBPool::Sqlite(sqlite) => { /* 使用 SqlitePool */ }
+    }
+}
+```
+
+### common/cache - Redis 缓存组件
+
+```
+common/cache/
+├── src/
+│   ├── lib.rs          # 模块导出
+│   ├── client.rs       # RedisClient / CacheManager
+│   └── config.rs       # 配置
+```
+
+**核心类型:**
+- `RedisClient` - 包装 `redis::aio::ConnectionManager`
+- `CacheManager` - 缓存管理器 (`init` / `get_client`)
+- `CacheError` - 缓存错误枚举
+
+**主要方法:**
+- `get/set/set_ex/set_px` - 字符串操作
+- `hget/hset/hgetall` - Hash 操作
+- `incr/incr_by/incr_with_expire` - 自增操作
+- `lock/unlock` - 分布式锁 (Lua 脚本)
+- `del/exists/expire/pexpire` - 通用操作
+
+### common/queue - 消息队列组件 (Redis/Kafka 双后端)
+
+```
+common/queue/
+├── src/
+│   ├── lib.rs              # 模块导出
+│   ├── config.rs           # Backend / Config / MergedConfig
+│   ├── producer.rs         # MessageProducer / ProducerManager
+│   ├── consumer.rs         # MessageConsumer / ConsumerManager
+│   ├── consumer_handler.rs # ConsumerManagerWithHandler / MessageHandler
+│   ├── kafka_producer.rs   # Kafka 生产者实现
+│   └── kafka_consumer.rs   # Kafka 消费者实现
+```
+
+**核心类型:**
+- `Backend` - 后端枚举 (`Redis` | `Kafka`)
+- `Message` - `{ key: Option<String>, value: String }`
+- `ConsumeMessage` - `{ key, value, topic }`
+- `ProducerManager` - 统一生产者管理器
+- `ConsumerManager` - 统一消费者管理器
+
+**使用方式:**
+```rust
+use queue::{ProducerManager, Message, Backend};
+
+// 生产者
+let producer = ProducerManager::new(config);
+producer.init().await?;
+producer.send_string("topic", Some("key"), "value").await?;
+producer.send_json("topic", None, &my_struct).await?;
+
+// 消费者
+let consumer = ConsumerManager::new(config, "topic");
+consumer.init().await?;
+while let Ok(Some(msg)) = consumer.consume().await {
+    println!("{}: {}", msg.topic, msg.value);
+}
+```
+
+### common/rate_limiter - 限流组件
+
+```
+common/rate_limiter/
+├── src/
+│   ├── lib.rs              # 模块导出
+│   ├── traits.rs           # RateLimiter / RateLimitKey / RateLimitResult
+│   ├── algorithm/          # 限流算法
+│   │   ├── token_bucket.rs
+│   │   ├── sliding_window.rs
+│   │   └── fixed_window.rs
+│   ├── store/              # 存储实现
+│   │   ├── memory.rs
+│   │   └── redis.rs
+│   └── middleware.rs       # Axum 中间件
+```
+
+**核心类型:**
+- `RateLimiter` - 限流器 trait
+- `RateLimitKey` - 限流键 (`user_id` + `ip` + `endpoint`)
+- `RateLimitResult` - `{ allowed, remaining, reset_at_ms }`
+- `MemoryStore` / `RedisStore` - 存储实现
+
+**使用方式:**
+```rust
+use rate_limiter::{MemoryStore, Algorithm};
+
+let limiter = MemoryStore::new(Algorithm::SlidingWindow {
+    window_ms: 60_000,
+    max_requests: 100,
+});
+
+let key = RateLimitKey::new()
+    .with_user("user_id")
+    .with_ip("127.0.0.1")
+    .with_endpoint("/api/orders");
+
+let result = limiter.check_and_consume(&key, 1).await?;
+```
+
+---
+
+## 领域模型 (domain)
+
+### 目录结构
+
+```
+domain/
+├── src/
+│   ├── lib.rs              # 模块导出
+│   ├── order/              # 订单领域
+│   │   ├── mod.rs
+│   │   ├── model/          # 订单数据模型
+│   │   ├── event/          # 订单事件
+│   │   └── shared/         # 共享模型
+│   ├── trade/              # 成交领域
+│   ├── user/               # 用户领域
+│   ├── market_data/        # 行情领域
+│   └── prediction_market/  # 预测市场领域
+```
+
+**每个领域包含:**
+- `model/` - 数据模型 (纯 Rust struct/enum, `Serialize`/`Deserialize`)
+- `event/` - 领域事件 (Kafka 消息体)
+- `shared/` - 跨领域共享模型
+
+**与 api 包的区别:**
+- `domain` - 纯业务模型，无 gRPC/Protobuf 依赖
+- `api` - gRPC 接口定义，包含 `prost::Message` 注解
+
+### 模型定义示例
+
+```rust
+// domain/src/order/model/mod.rs
+use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum OrderStatus {
+    Pending,
+    Submitted,
+    PartiallyFilled,
+    Filled,
+    Cancelled,
+    Rejected,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Order {
+    pub id: String,
+    pub user_id: i64,
+    pub market_id: i64,
+    pub side: OrderSide,
+    pub order_type: OrderType,
+    pub price: Decimal,
+    pub quantity: Decimal,
+    pub filled_quantity: Decimal,
+    pub status: OrderStatus,
+    pub created_at: i64,
+}
+```
+
+---
+
+## gRPC 接口定义规范
+
+### 架构原则
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         API Gateway                               │
+│              依赖 crates/api (接口定义)                          │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         crates/api                               │
+│              统一接口定义，所有服务依赖此包                       │
+│   ├── user.rs (来自 user-service)                               │
+│   ├── order.rs (来自 order-service)                             │
+│   ├── auth.rs (来自 auth-service)                              │
+│   └── ...                                                      │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+        ┌─────────────────┼─────────────────┐
+        ▼                 ▼                 ▼
+┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+│user-service │   │order-service│   │auth-service │
+│  src/pb/    │   │   src/pb/   │   │   src/pb/   │
+│ user.proto  │   │order.proto  │   │ auth.proto  │
+└─────────────┘   └─────────────┘   └─────────────┘
+```
+
+### 设计原则
+
+1. **Proto 文件放在各自服务** - 源文件 `src/pb/*.proto` 保留在服务目录
+2. **生成代码输出到 crates/api** - build.rs 配置输出到 `crates/api/src/`
+3. **统一依赖** - 所有组件依赖 `api = { path = "../api" }`
+4. **单向依赖** - domain → api → services → gateway
+
+### 服务 build.rs 模板
+
+```rust
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let api_src = manifest_dir
+        .parent().unwrap()
+        .parent().unwrap()
+        .join("crates/api/src");
+
+    std::fs::create_dir_all(&api_src)?;
+
+    tonic_build::configure()
+        .build_server(true)           // 生成服务端代码
+        .build_client(true)          // 生成客户端代码
+        .file_descriptor_set_path(&api_src.join("{service}.desc"))
+        .out_dir(&api_src)
+        .compile_protos(
+            &[manifest_dir.join("src/pb/{service}.proto")],
+            &[manifest_dir.join("src/pb")],
+        )?;
+    Ok(())
+}
+```
+
+### crates/api/src/lib.rs 结构
+
+```rust
+pub mod user {
+    include!("user.rs");
+}
+
+pub mod order {
+    include!("order.rs");
+}
+
+pub mod auth {
+    include!("auth.rs");
+}
+
+// 便捷导出
+pub use user::user_service_client::UserServiceClient;
+pub use order::order_service_client::OrderServiceClient;
+pub use auth::auth_service_client::AuthServiceClient;
+```
+
+### 服务间依赖关系
+
+| 包 | 依赖 | 说明 |
+|----|------|------|
+| `domain` | 无 | 纯业务模型，无序列化 |
+| `api` | 无 | 接口定义 + 序列化注解 |
+| `user-service` | domain, api | 服务实现 |
+| `order-service` | domain, api | 服务实现 |
+| `api-gateway` | api, common | 依赖接口，不依赖服务实现 |
+| `ws-*` | api | WebSocket 服务 |
+
+### Proto 定义规范
+
+```protobuf
+syntax = "proto3";
+
+package order;
+
+service OrderService {
+    rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+    rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+}
+
+// 请求消息
+message CreateOrderRequest {
+    int64 user_id = 1;
+    int64 market_id = 2;
+    string side = 3;       // buy, sell
+    string price = 4;      // Decimal 用 string 传输
+    string quantity = 5;
+}
+
+// 响应消息
+message CreateOrderResponse {
+    bool success = 1;
+    string order_id = 2;
+    Order order = 3;
+}
+
+// 数据模型
+message Order {
+    string id = 1;
+    int64 user_id = 2;
+    string price = 3;
+    string status = 4;
+}
+```
+
+**类型映射规范:**
+
+| Rust 类型 | Proto 类型 | 说明 |
+|-----------|-----------|------|
+| `i64` | `int64` | ID、时间戳 |
+| `String` | `string` | 字符串 |
+| `Decimal` | `string` | 金额用字符串传输 |
+| `Vec<T>` | `repeated T` | 数组 |
+| `Option<T>` | `optional` | 可选字段 |
+| `bool` | `bool` | 布尔值 |
+
+### gRPC 服务实现示例
+
+```rust
+use tonic::{Request, Response, Status};
+use api::order::{order_service_server::OrderService, *};
+
+pub struct OrderServiceImpl {
+    pool: sqlx::PgPool,
+}
+
+#[tonic::async_trait]
+impl OrderService for OrderServiceImpl {
+    async fn create_order(
+        &self,
+        request: Request<CreateOrderRequest>,
+    ) -> Result<Response<CreateOrderResponse>, Status> {
+        let req = request.into_inner();
+        // 业务逻辑...
+        Ok(Response::new(CreateOrderResponse {
+            success: true,
+            order_id: "o_xxx".to_string(),
+            order: None,
+        }))
+    }
+}
+```
+
+### 新增服务流程
+
+1. 在 `src/pb/` 创建 `*.proto` 文件
+2. 配置 `build.rs` 输出到 `crates/api/src/`
+3. 服务 `Cargo.toml` 添加 `api = { path = "../api" }`
+4. 在 `crates/api/src/lib.rs` 添加 `pub mod {service};`
+5. 其他服务/Gateway 依赖 `api` 使用接口
+
+### 注意事项
+
+- 服务端使用 tonic，不依赖 salvo
+- API Gateway 负责 HTTP -> gRPC 转换
+- Proto 文件放在 `src/pb/` 目录
+- build.rs 配置 tonic-build 生成代码到 `crates/api/src/`
+- 生成文件包括: `{service}.rs` (代码) 和 `{service}.desc` (描述符)
+- `Decimal` 类型在 proto 中使用 `string` 传输
