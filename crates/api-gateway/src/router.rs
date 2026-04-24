@@ -4,6 +4,7 @@ use salvo::prelude::*;
 
 use crate::handlers::*;
 use crate::middleware::{auth, cors_handler, log_request, rate_limit};
+use crate::ws_proxy::{ws_market_data_proxy, ws_order_proxy, ws_prediction_proxy};
 
 /// 创建路由器
 pub fn create_router() -> Router {
@@ -49,6 +50,7 @@ pub fn create_router() -> Router {
         .push(Router::with_path("/api/v1/markets")
             .push(Router::with_path("").get(list_markets))
             .push(Router::with_path("/<market_id>").get(get_market))
+            .push(Router::with_path("/<market_id>/resolve").post(resolve_market).hoop(auth))
             .push(Router::with_path("/<market_id>/outcomes").get(get_market_outcomes))
             .push(Router::with_path("/<market_id>/price").get(get_market_price))
         )
@@ -68,4 +70,9 @@ pub fn create_router() -> Router {
             .push(Router::with_path("/withdraw").post(withdraw))
             .push(Router::with_path("/history").get(get_wallet_history))
         )
+
+        // WebSocket 代理
+        .push(Router::with_path("/ws/market-data").get(ws_market_data_proxy))
+        .push(Router::with_path("/ws/order").get(ws_order_proxy))
+        .push(Router::with_path("/ws/prediction").get(ws_prediction_proxy))
 }

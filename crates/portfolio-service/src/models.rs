@@ -12,6 +12,27 @@ pub enum AccountType {
     Futures,
 }
 
+impl AccountType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AccountType::Spot => "spot",
+            AccountType::Futures => "futures",
+        }
+    }
+}
+
+impl std::str::FromStr for AccountType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "spot" => Ok(AccountType::Spot),
+            "futures" => Ok(AccountType::Futures),
+            _ => Err(format!("Unknown account type: {}", s)),
+        }
+    }
+}
+
 /// 账户
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
@@ -21,6 +42,7 @@ pub struct Account {
     pub account_type: AccountType,
     pub available: Decimal,
     pub frozen: Decimal,
+    pub version: i64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -39,6 +61,27 @@ pub enum PositionSide {
     Short,  // 买 NO
 }
 
+impl PositionSide {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PositionSide::Long => "long",
+            PositionSide::Short => "short",
+        }
+    }
+}
+
+impl std::str::FromStr for PositionSide {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "long" => Ok(PositionSide::Long),
+            "short" => Ok(PositionSide::Short),
+            _ => Err(format!("Unknown position side: {}", s)),
+        }
+    }
+}
+
 /// 持仓
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
@@ -49,6 +92,7 @@ pub struct Position {
     pub side: PositionSide,
     pub size: Decimal,
     pub entry_price: Decimal,
+    pub version: i64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -60,6 +104,29 @@ pub enum SettlementStatus {
     Pending,
     Completed,
     Failed,
+}
+
+impl SettlementStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SettlementStatus::Pending => "pending",
+            SettlementStatus::Completed => "completed",
+            SettlementStatus::Failed => "failed",
+        }
+    }
+}
+
+impl std::str::FromStr for SettlementStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "pending" => Ok(SettlementStatus::Pending),
+            "completed" => Ok(SettlementStatus::Completed),
+            "failed" => Ok(SettlementStatus::Failed),
+            _ => Err(format!("Unknown settlement status: {}", s)),
+        }
+    }
 }
 
 /// 结算记录
@@ -92,6 +159,39 @@ pub enum LedgerType {
     TransferOut, // 转出
 }
 
+impl LedgerType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            LedgerType::Deposit => "deposit",
+            LedgerType::Withdraw => "withdraw",
+            LedgerType::Freeze => "freeze",
+            LedgerType::Unfreeze => "unfreeze",
+            LedgerType::Trade => "trade",
+            LedgerType::Settle => "settle",
+            LedgerType::TransferIn => "transfer_in",
+            LedgerType::TransferOut => "transfer_out",
+        }
+    }
+}
+
+impl std::str::FromStr for LedgerType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "deposit" => Ok(LedgerType::Deposit),
+            "withdraw" => Ok(LedgerType::Withdraw),
+            "freeze" => Ok(LedgerType::Freeze),
+            "unfreeze" => Ok(LedgerType::Unfreeze),
+            "trade" => Ok(LedgerType::Trade),
+            "settle" => Ok(LedgerType::Settle),
+            "transfer_in" => Ok(LedgerType::TransferIn),
+            "transfer_out" => Ok(LedgerType::TransferOut),
+            _ => Err(format!("Unknown ledger type: {}", s)),
+        }
+    }
+}
+
 /// 账本流水
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LedgerEntry {
@@ -105,31 +205,4 @@ pub struct LedgerEntry {
     pub reference_id: String,
     pub reference_type: String,
     pub created_at: DateTime<Utc>,
-}
-
-/// 冻结请求
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FreezeRequest {
-    pub user_id: String,
-    pub asset: String,
-    pub amount: Decimal,
-    pub order_id: String,
-}
-
-/// 解冻请求
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UnfreezeRequest {
-    pub user_id: String,
-    pub asset: String,
-    pub amount: Decimal,
-    pub order_id: String,
-}
-
-/// 划转请求
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TransferRequest {
-    pub from_user_id: String,
-    pub to_user_id: String,
-    pub asset: String,
-    pub amount: Decimal,
 }

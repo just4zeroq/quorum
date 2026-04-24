@@ -6,8 +6,9 @@ pub mod router;
 pub mod middleware;
 pub mod handlers;
 pub mod grpc;
+pub mod ws_proxy;
 
 pub use router::create_router;
 pub use middleware::{auth, rate_limit, log_request, cors_handler};
 pub use handlers::*;
-pub use grpc::{GrpcConfig, connect, create_user_client, create_order_client, create_auth_client, create_market_data_client, create_prediction_market_client};
+pub use grpc::{GrpcConfig, connect, create_user_client, create_order_client, create_auth_client, create_market_data_client, create_prediction_market_client, create_portfolio_client, create_risk_client, create_wallet_client};

@@ -49,11 +49,17 @@ impl OrderServer {
         producer.init().await.map_err(|e| format!("Failed to init producer: {}", e))?;
         let queue_producer = OrderCommandProducer::new(producer);
 
-        // 创建 Queue Consumer
-        let consumer = ConsumerManager::new(merged_config, vec!["match.events".to_string()]);
+        // 创建 Queue Consumer (for match.events)
+        let consumer = ConsumerManager::new(merged_config.clone(), vec!["match.events".to_string()]);
         consumer.init().await.map_err(|e| format!("Failed to init consumer: {}", e))?;
         let order_repo = OrderRepository::new(pool.clone());
-        let queue_consumer = MatchEventConsumer::new(consumer, order_repo);
+
+        // 创建 order_events producer
+        let event_producer = ProducerManager::new(merged_config);
+        event_producer.init().await.map_err(|e| format!("Failed to init event producer: {}", e))?;
+
+        let queue_consumer = MatchEventConsumer::new(consumer, order_repo)
+            .with_event_producer(event_producer);
 
         Ok(Self {
             config,

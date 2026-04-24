@@ -5,16 +5,22 @@
 //! - 支持审计和追溯
 
 use rust_decimal::Decimal;
+
 use crate::errors::PortfolioError;
 use crate::models::{LedgerEntry, LedgerType};
+use crate::repository::PortfolioRepository;
 
 /// 账本服务（只追加，不可变）
-pub struct LedgerService;
+pub struct LedgerService {
+    repo: PortfolioRepository,
+}
 
 impl LedgerService {
+    pub fn new(repo: PortfolioRepository) -> Self {
+        Self { repo }
+    }
+
     /// 记录流水
-    ///
-    /// 账本是追加-only，不可修改或删除
     pub async fn record(
         &self,
         user_id: &str,
@@ -39,16 +45,17 @@ impl LedgerService {
             created_at: chrono::Utc::now(),
         };
 
+        self.repo.insert_ledger(&entry).await?;
+
         tracing::debug!(
-            "Ledger record: {} {} {} (ref: {}:{})",
-            ledger_type_to_string(entry.ledger_type),
+            "Ledger recorded: {} {} {} (ref: {}:{}, balance_after: {})",
+            entry.ledger_type.as_str(),
             amount,
             asset,
             reference_type,
-            reference_id
+            reference_id,
+            balance_after
         );
-
-        // TODO: 写入数据库
 
         Ok(entry)
     }
@@ -58,33 +65,8 @@ impl LedgerService {
         &self,
         user_id: &str,
         limit: i32,
+        offset: i32,
     ) -> Result<Vec<LedgerEntry>, PortfolioError> {
-        tracing::info!("Get ledger entries for user: {}", user_id);
-        // TODO: 从数据库查询
-        Ok(vec![])
-    }
-
-    /// 查询账户流水
-    pub async fn get_account_entries(
-        &self,
-        account_id: &str,
-        limit: i32,
-    ) -> Result<Vec<LedgerEntry>, PortfolioError> {
-        tracing::info!("Get ledger entries for account: {}", account_id);
-        // TODO: 从数据库查询
-        Ok(vec![])
-    }
-}
-
-fn ledger_type_to_string(t: LedgerType) -> &'static str {
-    match t {
-        LedgerType::Deposit => "Deposit",
-        LedgerType::Withdraw => "Withdraw",
-        LedgerType::Freeze => "Freeze",
-        LedgerType::Unfreeze => "Unfreeze",
-        LedgerType::Trade => "Trade",
-        LedgerType::Settle => "Settle",
-        LedgerType::TransferIn => "TransferIn",
-        LedgerType::TransferOut => "TransferOut",
+        self.repo.list_ledger_by_user(user_id, limit, offset).await
     }
 }

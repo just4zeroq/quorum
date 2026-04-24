@@ -58,6 +58,28 @@ impl PositionRepository {
         Ok(positions)
     }
 
+    /// 根据市场和选项获取所有用户持仓（用于结算派彩）
+    pub async fn find_by_market_and_outcome(
+        pool: &PgPool,
+        market_id: i64,
+        outcome_id: i64,
+    ) -> sqlx::Result<Vec<UserPosition>> {
+        let rows = sqlx::query(
+            "SELECT id, user_id, market_id, outcome_id, quantity, avg_price, created_at, updated_at
+             FROM user_positions WHERE market_id = $1 AND outcome_id = $2 ORDER BY user_id"
+        )
+        .bind(market_id)
+        .bind(outcome_id)
+        .fetch_all(pool)
+        .await?;
+
+        let mut positions = Vec::new();
+        for row in rows {
+            positions.push(Self::row_to_position(row));
+        }
+        Ok(positions)
+    }
+
     /// 根据ID获取持仓
     pub async fn find_by_id(pool: &PgPool, id: i64) -> sqlx::Result<Option<UserPosition>> {
         let row = sqlx::query(

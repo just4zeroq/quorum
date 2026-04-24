@@ -18,18 +18,18 @@
 | 服务 | Proto | Server | Tests | 文档 |
 |------|:------:|:------:|:-----:|:----:|
 | User Service | ✅ | ✅ | - | ✅ |
-| Portfolio Service | ✅ | - | - | ✅ |
+| Portfolio Service | ✅ | ✅ | - | ✅ |
 | Order Service | ✅ | ✅ | - | ✅ |
 | Prediction Market Service | ✅ | ✅ | ✅ | ✅ |
 | Matching Engine | - | ✅ Core + Queue | ✅ | ✅ |
 | Market Data Service | ✅ | ✅ | ✅ | ✅ |
-| Risk Service | ✅ | - | - | ✅ |
+| Risk Service | ✅ | ✅ | - | ✅ |
 | Wallet Service | ✅ | ✅ | - | ✅ |
 | Auth Service | ✅ | ✅ | - | - |
-| API Gateway | - | - | - | ✅ |
-| ws-market-data | - | - | - | ✅ |
-| ws-order | - | - | - | ✅ |
-| ws-prediction | - | - | - | ✅ |
+| API Gateway | - | ✅ | - | ✅ |
+| ws-market-data | - | ✅ | - | ✅ |
+| ws-order | - | ✅ | - | ✅ |
+| ws-prediction | - | ✅ | - | ✅ |
 
 > ✅ = 已完成实现/文档 | - = 未实现 | Core = 仅核心逻辑
 

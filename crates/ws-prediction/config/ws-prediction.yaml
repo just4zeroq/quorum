@@ -1,0 +1,8 @@
+service:
+  port: 50018
+  host: "0.0.0.0"
+
+queue:
+  backend: "redis"
+  topic: "market_events"
+  group_id: "ws-prediction"

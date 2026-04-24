@@ -1,0 +1,8 @@
+service:
+  port: 50017
+  host: "0.0.0.0"
+
+queue:
+  backend: "redis"
+  topic: "order_events"
+  group_id: "ws-order"

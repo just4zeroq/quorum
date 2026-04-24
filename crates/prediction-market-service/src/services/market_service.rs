@@ -2,6 +2,7 @@
 
 use tonic::{Request, Response, Status};
 use rust_decimal::Decimal;
+use std::collections::HashMap;
 
 use crate::models::{PredictionMarket, MarketOutcome, MarketStatus};
 use crate::repository::{MarketRepository, OutcomeRepository, PositionRepository};
@@ -20,11 +21,22 @@ use crate::pb::{
 
 pub struct MarketService {
     pool: sqlx::PgPool,
+    portfolio_client: api::portfolio::portfolio_service_client::PortfolioServiceClient<tonic::transport::Channel>,
+    event_producer: Option<queue::ProducerManager>,
 }
 
 impl MarketService {
-    pub fn new(pool: sqlx::PgPool) -> Self {
-        Self { pool }
+    pub fn new(
+        pool: sqlx::PgPool,
+        portfolio_client: api::portfolio::portfolio_service_client::PortfolioServiceClient<tonic::transport::Channel>,
+    ) -> Self {
+        Self { pool, portfolio_client, event_producer: None }
+    }
+
+    /// 设置事件生产者
+    pub fn with_event_producer(mut self, producer: queue::ProducerManager) -> Self {
+        self.event_producer = Some(producer);
+        self
     }
 }
 
@@ -386,12 +398,76 @@ impl PredictionMarketService for MarketService {
         .await
         .map_err(|e| Status::internal(e.to_string()))?;
 
+        // ========== 派彩：将赢家持仓结算到 Portfolio Service ==========
+        let winning_positions = PositionRepository::find_by_market_and_outcome(
+            &self.pool,
+            req.market_id,
+            req.outcome_id,
+        )
+        .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        // 按 user_id 汇总数量
+        let mut user_quantities: HashMap<i64, Decimal> = HashMap::new();
+        for pos in &winning_positions {
+            *user_quantities.entry(pos.user_id).or_insert(Decimal::ZERO) += pos.quantity;
+        }
+
+        // 构建 Portfolio Service 的 UserPayout 列表
+        let mut total_payout = Decimal::ZERO;
+        let mut total_quantity = Decimal::ZERO;
+        let payouts: Vec<api::portfolio::UserPayout> = user_quantities
+            .iter()
+            .map(|(user_id, quantity)| {
+                total_payout += quantity;
+                total_quantity += quantity;
+                api::portfolio::UserPayout {
+                    user_id: user_id.to_string(),
+                    quantity: quantity.to_string(),
+                    payout_amount: quantity.to_string(), // 1 USDC / 份
+                }
+            })
+            .collect();
+
+        if !payouts.is_empty() {
+            let settle_req = tonic::Request::new(api::portfolio::SettleMarketRequest {
+                market_id: req.market_id as u64,
+                winning_outcome_id: req.outcome_id as u64,
+                payouts,
+            });
+
+            self.portfolio_client
+                .clone()
+                .settle_market(settle_req)
+                .await
+                .map_err(|e| Status::internal(format!("Failed to settle market: {}", e)))?;
+
+            tracing::info!(
+                "Market {} settled: {} users, total payout {}",
+                req.market_id,
+                user_quantities.len(),
+                total_payout,
+            );
+        } else {
+            tracing::info!("Market {} resolved: no winning positions to settle", req.market_id);
+        }
+
+        // 发布市场事件到消息队列
+        self.publish_market_event(
+            req.market_id,
+            req.outcome_id,
+            &total_payout.to_string(),
+            &total_quantity.to_string(),
+            user_quantities.len() as i64,
+            now,
+        ).await;
+
         let resolution = PbMarketResolution {
             id: req.market_id,
             market_id: req.market_id,
             outcome_id: req.outcome_id,
-            total_payout: "0".to_string(),
-            winning_quantity: "0".to_string(),
+            total_payout: total_payout.to_string(),
+            winning_quantity: total_quantity.to_string(),
             payout_ratio: "1".to_string(),
             resolved_at: now,
         };
@@ -503,7 +579,7 @@ impl PredictionMarketService for MarketService {
     }
 }
 
-// 辅助方法：模型转换
+// 辅助方法：模型转换 + 事件发布
 impl MarketService {
     fn model_to_pb_market(&self, m: PredictionMarket) -> PbPredictionMarket {
         PbPredictionMarket {
@@ -535,6 +611,59 @@ impl MarketService {
             probability: o.probability.to_string(),
             created_at: o.created_at,
             updated_at: o.updated_at,
+        }
+    }
+
+    /// 发布市场事件到消息队列
+    async fn publish_market_event(
+        &self,
+        market_id: i64,
+        outcome_id: i64,
+        total_payout: &str,
+        winning_quantity: &str,
+        payout_count: i64,
+        resolved_at: i64,
+    ) {
+        if let Some(ref producer) = self.event_producer {
+            // market_status 事件
+            let status_event = serde_json::json!({
+                "type": "market_status",
+                "market_id": market_id,
+                "data": {
+                    "status": "resolved",
+                    "winning_outcome_id": outcome_id,
+                    "resolved_at": resolved_at,
+                }
+            });
+            let msg = queue::Message {
+                key: Some(market_id.to_string()),
+                value: serde_json::to_string(&status_event).unwrap_or_default(),
+            };
+            if let Err(e) = producer.send("market_events", msg).await {
+                tracing::warn!("Failed to publish market_status event: {}", e);
+            }
+
+            // settlement 事件
+            let settlement_event = serde_json::json!({
+                "type": "settlement",
+                "market_id": market_id,
+                "data": {
+                    "winning_outcome_id": outcome_id,
+                    "total_payout": total_payout,
+                    "winning_quantity": winning_quantity,
+                    "payout_count": payout_count,
+                    "resolved_at": resolved_at,
+                }
+            });
+            let msg = queue::Message {
+                key: Some(market_id.to_string()),
+                value: serde_json::to_string(&settlement_event).unwrap_or_default(),
+            };
+            if let Err(e) = producer.send("settlement_events", msg).await {
+                tracing::warn!("Failed to publish settlement event: {}", e);
+            }
+
+            tracing::info!("Published market events for market {}", market_id);
         }
     }
 }

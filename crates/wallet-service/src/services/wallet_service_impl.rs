@@ -7,7 +7,7 @@ use rust_decimal::Decimal;
 use std::str::FromStr;
 
 use crate::errors::WalletError;
-use crate::models::{WithdrawStatus, WithdrawRecord, DepositAddress, WhitelistAddress};
+use crate::models::WithdrawStatus;
 use crate::repository::{
     DepositRepository, WithdrawRepository, WhitelistRepository, PaymentPasswordRepository,
 };
@@ -19,6 +19,7 @@ pub struct WalletServiceImpl {
     withdraw_repo: Arc<WithdrawRepository>,
     whitelist_repo: Arc<WhitelistRepository>,
     payment_password_repo: Arc<PaymentPasswordRepository>,
+    portfolio_client: api::portfolio::portfolio_service_client::PortfolioServiceClient<tonic::transport::Channel>,
     require_whitelist: bool,
     require_payment_password: bool,
     supported_chains: Vec<String>,
@@ -31,12 +32,14 @@ impl WalletServiceImpl {
         withdraw_repo: WithdrawRepository,
         whitelist_repo: WhitelistRepository,
         payment_password_repo: PaymentPasswordRepository,
+        portfolio_client: api::portfolio::portfolio_service_client::PortfolioServiceClient<tonic::transport::Channel>,
     ) -> Self {
         Self {
             deposit_repo: Arc::new(deposit_repo),
             withdraw_repo: Arc::new(withdraw_repo),
             whitelist_repo: Arc::new(whitelist_repo),
             payment_password_repo: Arc::new(payment_password_repo),
+            portfolio_client,
             require_whitelist: false,
             require_payment_password: true,
             supported_chains: vec!["ETH".to_string(), "BSC".to_string(), "ARBITRUM".to_string()],
@@ -139,7 +142,21 @@ impl WalletService for WalletServiceImpl {
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // Note: In production, should call Portfolio Service to credit balance
+        // Credit user's balance in Portfolio Service
+        let credit_req = tonic::Request::new(api::portfolio::CreditRequest {
+            user_id: req.user_id.to_string(),
+            asset: req.chain.clone(),
+            amount: req.amount.clone(),
+        });
+        self.portfolio_client
+            .clone()
+            .credit(credit_req)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to credit user balance: {:?}", e);
+                Status::internal(format!("Failed to credit balance: {}", e))
+            })?;
+
         tracing::info!("Deposit confirmed: user={}, tx={}, amount={}", req.user_id, req.tx_id, req.amount);
 
         Ok(Response::new(ConfirmDepositResponse {
@@ -227,6 +244,27 @@ impl WalletService for WalletServiceImpl {
             }
         }
 
+        // Freeze user's balance in Portfolio Service
+        let freeze_id = uuid::Uuid::new_v4().to_string();
+        let freeze_req = tonic::Request::new(api::portfolio::FreezeRequest {
+            user_id: req.user_id.to_string(),
+            asset: req.asset.clone(),
+            amount: req.amount.clone(),
+            order_id: freeze_id,
+        });
+        self.portfolio_client
+            .clone()
+            .freeze(freeze_req)
+            .await
+            .map_err(|e| {
+                if e.code() == tonic::Code::FailedPrecondition {
+                    Status::failed_precondition("Insufficient balance for withdrawal")
+                } else {
+                    tracing::error!("Failed to freeze balance for withdrawal: {:?}", e);
+                    Status::internal(format!("Failed to freeze balance: {}", e))
+                }
+            })?;
+
         // Create withdraw record
         let withdraw_id = self.withdraw_repo.create(
             req.user_id,
@@ -305,6 +343,22 @@ impl WalletService for WalletServiceImpl {
         self.withdraw_repo.update_status(withdraw_id, &WithdrawStatus::Cancelled.to_string(), None)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
+
+        // Unfreeze user's balance in Portfolio Service
+        let unfreeze_req = tonic::Request::new(api::portfolio::UnfreezeRequest {
+            user_id: req.user_id.to_string(),
+            asset: record.asset.clone(),
+            amount: record.amount.clone(),
+            order_id: record.id.to_string(),
+        });
+        self.portfolio_client
+            .clone()
+            .unfreeze(unfreeze_req)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to unfreeze balance for cancelled withdraw: {:?}", e);
+                Status::internal(format!("Failed to unfreeze balance: {}", e))
+            })?;
 
         Ok(Response::new(CancelWithdrawResponse {
             success: true,

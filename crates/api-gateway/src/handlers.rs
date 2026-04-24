@@ -3,7 +3,7 @@
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::grpc::{create_user_client, create_order_client, create_auth_client, GrpcConfig};
+use crate::grpc::{create_user_client, create_order_client, create_auth_client, create_portfolio_client, create_risk_client, create_wallet_client, GrpcConfig};
 
 /// 健康检查
 #[handler]
@@ -462,11 +462,48 @@ pub async fn create_order(req: &mut Request, depot: &mut Depot, res: &mut Respon
             StatusCode::BAD_REQUEST
         })?;
 
-    // 解析 user_id 为 i64
-    let user_id_i64: i64 = user_id.replace("usr_", "").parse().unwrap_or(0);
-
-    // 调用 Order Service gRPC
+    // 步骤1: 调用 Risk Service 风控检查
     let config = GrpcConfig::default();
+    match create_risk_client(config.risk_service_addr.clone()).await {
+        Ok(mut client) => {
+            let risk_request = api::risk::CheckRiskRequest {
+                user_id: user_id.clone(),
+                market_id: payload.market_id,
+                outcome_id: payload.outcome_id,
+                side: payload.side.clone(),
+                order_type: payload.order_type.clone(),
+                price: payload.price.clone(),
+                quantity: payload.quantity.clone(),
+            };
+
+            match client.check_risk(risk_request).await {
+                Ok(resp) => {
+                    let risk_data = resp.into_inner();
+                    if !risk_data.accepted {
+                        tracing::warn!("Risk check rejected for user {}: {}", user_id, risk_data.reason);
+                        res.status_code(StatusCode::BAD_REQUEST);
+                        res.render(Json(serde_json::json!({
+                            "success": false,
+                            "error": risk_data.reason,
+                        })));
+                        return Ok(());
+                    }
+                    tracing::debug!("Risk check passed for user {}", user_id);
+                }
+                Err(e) => {
+                    tracing::warn!("Risk service unavailable, proceeding without risk check: {:?}", e);
+                    // 风险服务不可用时，继续下单（熔断降级）
+                }
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to connect to risk service, proceeding without risk check: {:?}", e);
+            // 熔断降级
+        }
+    }
+
+    // 步骤2: 调用 Order Service gRPC
+    let user_id_i64: i64 = user_id.replace("usr_", "").parse().unwrap_or(0);
     match create_order_client(config.order_service_addr).await {
         Ok(mut client) => {
             let grpc_request = api::order::CreateOrderRequest {
@@ -712,44 +749,113 @@ pub async fn get_orders(req: &mut Request, depot: &mut Depot, res: &mut Response
 
 #[derive(Debug, Deserialize, Default)]
 pub struct GetBalanceQuery {
-    pub account_type: Option<String>,
+    pub asset: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct BalanceResponse {
+    pub account_id: String,
+    pub asset: String,
     pub available: String,
     pub frozen: String,
-    pub equity: String,
 }
 
 #[handler]
 pub async fn get_balance(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
-    let _user_id = depot.get::<String>("user_id")
+    let user_id = depot.get::<String>("user_id")
         .map(|v| v.to_string())
         .unwrap_or_else(|_| "unknown".to_string());
 
-    let _query = req.parse_queries::<GetBalanceQuery>().unwrap_or_default();
+    let query = req.parse_queries::<GetBalanceQuery>().unwrap_or_default();
+    let asset = query.asset.unwrap_or_else(|| "USDC".to_string());
 
-    // TODO: 调用 Portfolio Service gRPC
-    res.render(Json(BalanceResponse {
-        available: "10000.00".to_string(),
-        frozen: "1000.00".to_string(),
-        equity: "11000.00".to_string(),
-    }));
+    let config = GrpcConfig::default();
+    match create_portfolio_client(config.portfolio_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::portfolio::GetBalanceRequest {
+                user_id: user_id.clone(),
+                asset: asset.clone(),
+            };
+
+            match client.get_balance(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    res.render(Json(BalanceResponse {
+                        account_id: data.account_id,
+                        asset: data.asset,
+                        available: data.available,
+                        frozen: data.frozen,
+                    }));
+                }
+                Err(e) => {
+                    tracing::error!("Portfolio service get_balance failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to portfolio service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Portfolio service unavailable"})));
+        }
+    }
 
     Ok(())
 }
 
 // ========== 持仓相关 ==========
 
+#[derive(Debug, Deserialize, Default)]
+pub struct GetPositionsQuery {
+    pub market_id: Option<u64>,
+}
+
 #[handler]
-pub async fn get_positions(_req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
-    let _user_id = depot.get::<String>("user_id")
+pub async fn get_positions(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
+    let user_id = depot.get::<String>("user_id")
         .map(|v| v.to_string())
         .unwrap_or_else(|_| "unknown".to_string());
 
-    // TODO: 调用 Portfolio Service gRPC
-    res.render(Json(Vec::<serde_json::Value>::new()));
+    let query = req.parse_queries::<GetPositionsQuery>().unwrap_or_default();
+    let market_id = query.market_id.unwrap_or(0);
+
+    let config = GrpcConfig::default();
+    match create_portfolio_client(config.portfolio_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::portfolio::GetPositionsRequest {
+                user_id: user_id.clone(),
+                market_id,
+            };
+
+            match client.get_positions(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    let positions: Vec<serde_json::Value> = data.positions.into_iter().map(|p| {
+                        serde_json::json!({
+                            "id": p.id,
+                            "market_id": p.market_id,
+                            "outcome_id": p.outcome_id,
+                            "side": p.side,
+                            "size": p.size,
+                            "entry_price": p.entry_price,
+                        })
+                    }).collect();
+                    res.render(Json(positions));
+                }
+                Err(e) => {
+                    tracing::error!("Portfolio service get_positions failed: {:?}", e);
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to portfolio service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Portfolio service unavailable"})));
+        }
+    }
 
     Ok(())
 }
@@ -1093,29 +1199,50 @@ pub async fn withdraw(req: &mut Request, depot: &mut Depot, res: &mut Response) 
             StatusCode::BAD_REQUEST
         })?;
 
-    // TODO: 调用 Wallet Service gRPC
-    let withdrawal_id = format!("wd_{}", uuid::Uuid::new_v4().to_string().replace("-", "").chars().take(16).collect::<String>());
+    let config = crate::grpc::GrpcConfig::default();
+    match create_wallet_client(config.wallet_service_addr).await {
+        Ok(mut client) => {
+            let grpc_req = api::wallet::CreateWithdrawRequest {
+                user_id: user_id.parse::<i64>().unwrap_or(0),
+                asset: payload.asset.clone(),
+                amount: payload.amount.clone(),
+                to_address: payload.address.clone(),
+                chain: payload.network.clone().unwrap_or_else(|| "ETH".to_string()),
+                payment_password: String::new(),
+            };
 
-    tracing::info!("Withdrawal requested: {} {} {} by user {}",
-        payload.amount, payload.asset, withdrawal_id, user_id);
-
-    // 计算手续费 (假设 1 USDT 或 1%)
-    let amount: f64 = payload.amount.parse().unwrap_or(0.0);
-    let fee = if payload.asset.to_uppercase() == "USDT" {
-        1.0f64.max(amount * 0.01)
-    } else {
-        amount * 0.01
-    };
-
-    res.render(Json(WithdrawResponse {
-        success: true,
-        withdrawal_id,
-        asset: payload.asset.to_uppercase(),
-        amount: payload.amount,
-        fee: format!("{:.2}", fee),
-        net_amount: format!("{:.2}", amount - fee),
-        status: "pending".to_string(),
-    }));
+            match client.create_withdraw(grpc_req).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    let amt = payload.amount.clone();
+                    res.render(Json(WithdrawResponse {
+                        success: data.success,
+                        withdrawal_id: data.withdraw_id,
+                        asset: payload.asset.to_uppercase(),
+                        amount: payload.amount,
+                        fee: "0.001".to_string(),
+                        net_amount: amt,
+                        status: "pending".to_string(),
+                    }));
+                }
+                Err(e) => {
+                    tracing::error!("Wallet withdraw failed: {:?}", e);
+                    if e.code() == tonic::Code::FailedPrecondition {
+                        res.status_code(StatusCode::BAD_REQUEST);
+                        res.render(Json(serde_json::json!({"error": "Insufficient balance"})));
+                    } else {
+                        res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                        res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to wallet service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Wallet service unavailable"})));
+        }
+    }
 
     Ok(())
 }
@@ -1160,18 +1287,85 @@ pub struct WithdrawRecord {
 }
 
 #[handler]
-pub async fn get_wallet_history(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
-    let _user_id = depot.get::<String>("user_id")
+pub async fn get_wallet_history(_req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
+    let user_id_str = depot.get::<String>("user_id")
         .map(|v| v.to_string())
         .unwrap_or_else(|_| "unknown".to_string());
 
-    let _query = req.parse_queries::<WalletHistoryQuery>().unwrap_or_default();
+    let user_id = user_id_str.parse::<i64>().unwrap_or(0);
+    if user_id == 0 {
+        res.status_code(StatusCode::BAD_REQUEST);
+        res.render(Json(serde_json::json!({"error": "Invalid user"})));
+        return Ok(());
+    }
 
-    // TODO: 调用 Wallet Service gRPC
-    res.render(Json(WalletHistoryResponse {
-        deposits: Vec::new(),
-        withdrawals: Vec::new(),
-    }));
+    let config = crate::grpc::GrpcConfig::default();
+    match create_wallet_client(config.wallet_service_addr).await {
+        Ok(mut client) => {
+            // Get deposit history
+            let deposit_req = api::wallet::GetDepositHistoryRequest {
+                user_id,
+                chain: String::new(),
+                page: 1,
+                page_size: 20,
+            };
+            let deposits = match client.get_deposit_history(deposit_req).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    data.deposits.into_iter().map(|d| DepositRecord {
+                        id: d.tx_id.clone(),
+                        asset: d.chain.clone(),
+                        amount: d.amount,
+                        address: d.address,
+                        tx_hash: d.tx_id,
+                        confirmations: 0,
+                        status: "completed".to_string(),
+                        created_at: d.created_at.to_string(),
+                    }).collect::<Vec<_>>()
+                }
+                Err(e) => {
+                    tracing::error!("Failed to get deposit history: {:?}", e);
+                    Vec::new()
+                }
+            };
+
+            // Get withdraw history
+            let withdraw_req = api::wallet::GetWithdrawHistoryRequest {
+                user_id,
+                page: 1,
+                page_size: 20,
+            };
+            let withdrawals = match client.get_withdraw_history(withdraw_req).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    data.withdrawals.into_iter().map(|w| WithdrawRecord {
+                        id: w.withdraw_id,
+                        asset: w.asset,
+                        amount: w.amount,
+                        fee: w.fee,
+                        address: w.to_address,
+                        tx_hash: if w.tx_id.is_empty() { None } else { Some(w.tx_id) },
+                        status: w.status,
+                        created_at: w.created_at.to_string(),
+                    }).collect::<Vec<_>>()
+                }
+                Err(e) => {
+                    tracing::error!("Failed to get withdraw history: {:?}", e);
+                    Vec::new()
+                }
+            };
+
+            res.render(Json(WalletHistoryResponse {
+                deposits,
+                withdrawals,
+            }));
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to wallet service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Wallet service unavailable"})));
+        }
+    }
 
     Ok(())
 }
@@ -1314,6 +1508,79 @@ pub async fn get_market(req: &mut Request, _depot: &mut Depot, res: &mut Respons
                     tracing::error!("Prediction market get_market failed: {:?}", e);
                     res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                     res.render(Json(serde_json::json!({"error": format!("{:?}", e)})));
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to prediction market service: {:?}", e);
+            res.status_code(StatusCode::SERVICE_UNAVAILABLE);
+            res.render(Json(serde_json::json!({"error": "Prediction market service unavailable"})));
+        }
+    }
+
+    Ok(())
+}
+
+/// 结算市场（管理员）
+#[derive(Debug, Deserialize)]
+pub struct ResolveMarketBody {
+    pub outcome_id: i64,
+}
+
+#[handler]
+pub async fn resolve_market(req: &mut Request, _depot: &mut Depot, res: &mut Response) -> Result<(), StatusCode> {
+    let market_id = req.param::<i64>("market_id")
+        .unwrap_or(0);
+
+    if market_id == 0 {
+        res.status_code(StatusCode::BAD_REQUEST);
+        res.render(Json(serde_json::json!({"error": "Invalid market_id"})));
+        return Ok(());
+    }
+
+    let body = req.parse_json::<ResolveMarketBody>().await
+        .map_err(|_| {
+            res.status_code(StatusCode::BAD_REQUEST);
+            res.render(Json(serde_json::json!({"error": "Invalid request body: outcome_id required"})));
+            StatusCode::BAD_REQUEST
+        })?;
+
+    let config = crate::grpc::GrpcConfig::default();
+    match crate::grpc::create_prediction_market_client(config.prediction_market_service_addr).await {
+        Ok(mut client) => {
+            let grpc_request = api::prediction_market::ResolveMarketRequest {
+                market_id,
+                outcome_id: body.outcome_id,
+            };
+
+            match client.resolve_market(grpc_request).await {
+                Ok(resp) => {
+                    let data = resp.into_inner();
+                    res.render(Json(serde_json::json!({
+                        "success": true,
+                        "message": data.message,
+                        "resolution": data.resolution.map(|r| serde_json::json!({
+                            "id": r.id,
+                            "market_id": r.market_id,
+                            "outcome_id": r.outcome_id,
+                            "total_payout": r.total_payout,
+                            "winning_quantity": r.winning_quantity,
+                            "payout_ratio": r.payout_ratio,
+                            "resolved_at": r.resolved_at,
+                        })),
+                    })));
+                }
+                Err(e) => {
+                    tracing::error!("Prediction market resolve_market failed: {:?}", e);
+                    let msg = if e.code() == tonic::Code::NotFound {
+                        "Market not found"
+                    } else if e.code() == tonic::Code::FailedPrecondition {
+                        "Market cannot be resolved in current status"
+                    } else {
+                        "Internal error resolving market"
+                    };
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    res.render(Json(serde_json::json!({"error": msg, "detail": format!("{}", e)})));
                 }
             }
         }

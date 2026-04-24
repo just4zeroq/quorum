@@ -28,12 +28,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let whitelist_repo = WhitelistRepository::new(pool.clone());
     let payment_password_repo = PaymentPasswordRepository::new(pool.clone());
 
+    // Create Portfolio Service gRPC client
+    let portfolio_channel = tonic::transport::Channel::from_shared(config.portfolio_service_addr.clone())
+        .map_err(|e| format!("Invalid portfolio service address: {}", e))?
+        .connect()
+        .await
+        .map_err(|e| format!("Failed to connect to portfolio service: {}", e))?;
+    let portfolio_client =
+        api::portfolio::portfolio_service_client::PortfolioServiceClient::new(portfolio_channel);
+
     // Create service
     let service = WalletServiceImpl::new(
         deposit_repo,
         withdraw_repo,
         whitelist_repo,
         payment_password_repo,
+        portfolio_client,
     );
 
     // Start gRPC server

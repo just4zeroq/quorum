@@ -19,6 +19,8 @@ members = [
     "crates/market-data-service",
     "crates/prediction-market-service",
     "crates/ws-market-data",
+    "crates/ws-order",
+    "crates/ws-prediction",
     "crates/sql",
 ]
 

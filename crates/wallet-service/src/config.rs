@@ -7,6 +7,7 @@ pub struct Config {
     pub service: ServiceConfig,
     pub database: DatabaseConfig,
     pub wallet: WalletConfig,
+    pub portfolio_service_addr: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -48,6 +49,7 @@ impl Default for Config {
                 require_payment_password: true,
                 default_fee: "0.001".to_string(),
             },
+            portfolio_service_addr: "http://[::1]:50003".to_string(),
         }
     }
 }

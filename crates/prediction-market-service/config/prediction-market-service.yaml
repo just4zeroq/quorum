@@ -30,3 +30,6 @@ queue:
   backend: redis
   host: localhost
   port: 6379
+
+# Portfolio Service gRPC address
+portfolio_service_addr: "http://[::1]:50003"

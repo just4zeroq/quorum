@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package risk;
+
+service RiskService {
+    // Pre-trade risk check
+    rpc CheckRisk(CheckRiskRequest) returns (CheckRiskResponse);
+}
+
+message CheckRiskRequest {
+    string user_id = 1;
+    uint64 market_id = 2;
+    uint64 outcome_id = 3;
+    string side = 4;          // YES / NO
+    string order_type = 5;    // limit / market
+    string price = 6;         // decimal as string
+    string quantity = 7;      // decimal as string
+}
+
+message CheckRiskResponse {
+    bool accepted = 1;
+    string reason = 2;         // empty if accepted
+}

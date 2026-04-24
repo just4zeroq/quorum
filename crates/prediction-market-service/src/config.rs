@@ -8,6 +8,7 @@ pub struct Config {
     pub db: DbConfig,
     pub redis: RedisConfig,
     pub queue: QueueConfig,
+    pub portfolio_service_addr: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -88,6 +89,7 @@ impl Default for Config {
                 host: "localhost".to_string(),
                 port: 6379,
             },
+            portfolio_service_addr: "http://[::1]:50003".to_string(),
         }
     }
 }

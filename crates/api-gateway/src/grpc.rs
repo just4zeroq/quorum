@@ -12,8 +12,10 @@ pub struct GrpcConfig {
     pub order_service_addr: String,
     pub auth_service_addr: String,
     pub portfolio_service_addr: String,
+    pub risk_service_addr: String,
     pub market_data_service_addr: String,
     pub prediction_market_service_addr: String,
+    pub wallet_service_addr: String,
     pub timeout: Duration,
 }
 
@@ -24,8 +26,10 @@ impl Default for GrpcConfig {
             order_service_addr: "http://127.0.0.1:50004".to_string(),
             auth_service_addr: "http://127.0.0.1:50009".to_string(),
             portfolio_service_addr: "http://127.0.0.1:50003".to_string(),
+            risk_service_addr: "http://127.0.0.1:50005".to_string(),
             market_data_service_addr: "http://127.0.0.1:50006".to_string(),
             prediction_market_service_addr: "http://127.0.0.1:50008".to_string(),
+            wallet_service_addr: "http://127.0.0.1:50002".to_string(),
             timeout: Duration::from_secs(10),
         }
     }
@@ -75,4 +79,28 @@ pub async fn create_prediction_market_client(
 ) -> Result<api::prediction_market::prediction_market_service_client::PredictionMarketServiceClient<Channel>, tonic::transport::Error> {
     let channel = connect(addr).await?;
     Ok(api::prediction_market::prediction_market_service_client::PredictionMarketServiceClient::new(channel))
+}
+
+/// 创建 Portfolio Service 客户端
+pub async fn create_portfolio_client(
+    addr: String,
+) -> Result<api::portfolio::portfolio_service_client::PortfolioServiceClient<Channel>, tonic::transport::Error> {
+    let channel = connect(addr).await?;
+    Ok(api::portfolio::portfolio_service_client::PortfolioServiceClient::new(channel))
+}
+
+/// 创建 Risk Service 客户端
+pub async fn create_risk_client(
+    addr: String,
+) -> Result<api::risk::risk_service_client::RiskServiceClient<Channel>, tonic::transport::Error> {
+    let channel = connect(addr).await?;
+    Ok(api::risk::risk_service_client::RiskServiceClient::new(channel))
+}
+
+/// 创建 Wallet Service 客户端
+pub async fn create_wallet_client(
+    addr: String,
+) -> Result<api::wallet::wallet_service_client::WalletServiceClient<Channel>, tonic::transport::Error> {
+    let channel = connect(addr).await?;
+    Ok(api::wallet::wallet_service_client::WalletServiceClient::new(channel))
 }

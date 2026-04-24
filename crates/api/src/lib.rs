@@ -57,6 +57,21 @@ pub mod matching {
     include!("matching.rs");
 }
 
+// Portfolio service types
+pub mod portfolio {
+    include!("portfolio.rs");
+}
+
+// Risk service types
+pub mod risk {
+    include!("risk.rs");
+}
+
+// Wallet service types
+pub mod wallet {
+    include!("wallet.rs");
+}
+
 // Re-export client traits for convenience
 pub use user::user_service_client::UserServiceClient;
 pub use order::order_service_client::OrderServiceClient;

@@ -4,11 +4,11 @@
 
 1. [业务流程总览](#1-业务流程总览)
 2. [用户注册登录 ✅](#2-用户注册登录)
-3. [充值流程 ⏳](#3-充值流程)
-4. [下单/挂单流程 ⚡](#4-下单挂单流程)
-5. [取现流程 ⏳](#5-取现流程)
+3. [充值流程 ✅](#3-充值流程)
+4. [下单/挂单流程 ✅](#4-下单挂单流程)
+5. [取现流程 ✅](#5-取现流程)
 6. [WebSocket 实时数据 ✅](#6-websocket-实时数据)
-7. [预测市场业务流 ⚡](#7-预测市场业务流)
+7. [预测市场业务流 ✅](#7-预测市场业务流)
 
 > **图例:** ✅ 已完成 | ⚡ 部分完成 | ⏳ 待开发
 
@@ -196,7 +196,7 @@ POST /api/v1/users/login
 
 ## 3. 充值流程
 
-> **状态: ⏳ 待开发** (Wallet Service / Portfolio Service gRPC Server 未实现)
+> **状态: ✅ 已完成** (Wallet Service gRPC + Portfolio Service Credit/Freeze/Debit 已实现)
 
 ### 3.1 充值流程 (链上充值)
 
@@ -269,7 +269,7 @@ Authorization: Bearer <token>
 
 ## 4. 下单挂单流程
 
-> **状态: ⚡ 部分完成** (Order Service / Matching Engine 已实现; Risk Service / Portfolio Service gRPC Server 待开发)
+> **状态: ✅ 已完成** (Order Service / Matching Engine / Risk Service / Portfolio Service gRPC 已实现)
 
 ### 4.1 下单流程 (市价单)
 
@@ -443,7 +443,7 @@ Authorization: Bearer <token>
 
 ## 5. 取现流程
 
-> **状态: ⏳ 待开发** (Wallet Service / Portfolio Service gRPC Server 未实现)
+> **状态: ✅ 已完成** (Wallet Service gRPC + Portfolio Service Freeze/Unfreeze 已实现)
 
 ### 5.1 取现流程
 
@@ -705,7 +705,7 @@ Authorization: Bearer <token>
 
 ## 7. 预测市场业务流
 
-> **状态: ⚡ 部分完成** (Prediction Market Service 已实现; 结算赔付涉及 Portfolio Service 待开发)
+> **状态: ✅ 已完成** (Prediction Market Service resolve_market 自动调用 Portfolio Service SettleMarket 派彩)
 
 ### 7.1 市场生命周期
 
@@ -831,23 +831,26 @@ Authorization: Bearer <admin_token>
 ```
 管理员                Prediction Market Service      Portfolio Service
     │                              │                              │
-    │  结算市场                    │                              │
+    │  POST /api/v1/markets/       │                              │
+    │  {market_id}/resolve         │                              │
     │  (winning_outcome_id)        │                              │
     │─────────────────────────────▶│                              │
     │                              │                              │
-    │                              │  更新状态: closed -> resolved│
+    │                              │  更新状态: resolved          │
     │                              │                              │
-    │                              │  gRPC CalculatePayout        │
+    │                              │  查询获胜选项持仓            │
+    │                              │  (按 user_id 汇总数量)       │
+    │                              │                              │
+    │                              │  gRPC SettleMarket           │
+    │                              │  (payouts[])                 │
     │                              │─────────────────────────────▶│
     │                              │                              │
     │                              │◄─────────────────────────────│
-    │                              │   payouts[]                  │
+    │                              │  { success, users_credited } │
     │                              │                              │
-    │                              │  Kafka: market.resolved      │
-    │                              │──────────▶ ws-market-data    │
-    │                              │            (推送结果)         │
     │◄─────────────────────────────│                              │
     │   { success, resolution }    │                              │
+    │   (含 total_payout)          │                              │
 ```
 
 **结算规则（二元预测市场）:**

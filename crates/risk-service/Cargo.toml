@@ -6,12 +6,20 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-common = { path = "../common" }
-tokio = { workspace = true }
-axum = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
-parking_lot = { workspace = true }
-thiserror = { workspace = true }
+# Async runtime
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+# gRPC
+tonic = { workspace = true, features = ["prost"] }
+prost = { workspace = true }
+api = { path = "../api" }
+async-trait = { workspace = true }
+
+# Utils
 rust_decimal = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+thiserror = { workspace = true }
+
+[build-dependencies]
+tonic-build = { workspace = true }

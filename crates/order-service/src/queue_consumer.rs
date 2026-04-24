@@ -1,6 +1,6 @@
 //! Queue Consumer - 消费撮合事件
 
-use queue::{MessageConsumer, ConsumerManager};
+use queue::{MessageConsumer, ConsumerManager, ProducerManager, Message};
 use crate::repository::OrderRepository;
 use crate::models::OrderStatus;
 use tracing::{info, error};
@@ -9,6 +9,7 @@ use tracing::{info, error};
 pub struct MatchEventConsumer {
     consumer: ConsumerManager,
     order_repo: OrderRepository,
+    event_producer: Option<ProducerManager>,
 }
 
 impl MatchEventConsumer {
@@ -16,7 +17,14 @@ impl MatchEventConsumer {
         Self {
             consumer,
             order_repo,
+            event_producer: None,
         }
+    }
+
+    /// 设置事件生产者
+    pub fn with_event_producer(mut self, producer: ProducerManager) -> Self {
+        self.event_producer = Some(producer);
+        self
     }
 
     /// 启动消费
@@ -58,15 +66,24 @@ impl MatchEventConsumer {
         match event.event_type.as_str() {
             "Trade" => {
                 info!("Processing trade event for order {}", event.matched_order_id);
-                // 更新订单成交信息
-                // 注意：这里需要从事件中获取 filled_quantity 和 filled_amount
-                // 简化处理：直接标记为完全成交
+                let filled_quantity = event.size.to_string();
+                let filled_amount = (event.size * event.price).to_string();
                 self.order_repo.update_status(
                     &event.matched_order_id.to_string(),
                     &OrderStatus::Filled.to_string(),
-                    &event.size.to_string(),
-                    &(event.size * event.price).to_string(),
+                    &filled_quantity,
+                    &filled_amount,
                 ).await.map_err(|e| e.to_string())?;
+
+                // 发布 order_events
+                self.publish_order_event(
+                    &event.matched_order_id.to_string(),
+                    event.matched_order_uid as i64,
+                    "filled",
+                    &filled_quantity,
+                    &filled_amount,
+                    &event.price.to_string(),
+                ).await;
             }
             "Reject" => {
                 info!("Processing reject event for order {}", event.matched_order_id);
@@ -76,15 +93,37 @@ impl MatchEventConsumer {
                     &"0".to_string(),
                     &"0".to_string(),
                 ).await.map_err(|e| e.to_string())?;
+
+                // 发布 order_events
+                self.publish_order_event(
+                    &event.matched_order_id.to_string(),
+                    event.matched_order_uid as i64,
+                    "rejected",
+                    "0",
+                    "0",
+                    &event.price.to_string(),
+                ).await;
             }
             "Reduce" => {
                 info!("Processing reduce event for order {}", event.matched_order_id);
+                let filled_quantity = event.size.to_string();
+                let filled_amount = (event.size * event.price).to_string();
                 self.order_repo.update_status(
                     &event.matched_order_id.to_string(),
                     &OrderStatus::PartiallyFilled.to_string(),
-                    &event.size.to_string(),
-                    &(event.size * event.price).to_string(),
+                    &filled_quantity,
+                    &filled_amount,
                 ).await.map_err(|e| e.to_string())?;
+
+                // 发布 order_events
+                self.publish_order_event(
+                    &event.matched_order_id.to_string(),
+                    event.matched_order_uid as i64,
+                    "partially_filled",
+                    &filled_quantity,
+                    &filled_amount,
+                    &event.price.to_string(),
+                ).await;
             }
             _ => {
                 info!("Unknown event type: {}", event.event_type);
@@ -92,5 +131,44 @@ impl MatchEventConsumer {
         }
 
         Ok(())
+    }
+
+    /// 发布订单事件到 order_events 主题
+    async fn publish_order_event(
+        &self,
+        order_id: &str,
+        user_id: i64,
+        status: &str,
+        filled_quantity: &str,
+        filled_amount: &str,
+        price: &str,
+    ) {
+        if let Some(ref producer) = self.event_producer {
+            let now = chrono::Utc::now().timestamp_millis();
+            let payload = serde_json::json!({
+                "type": "order_update",
+                "user_id": user_id,
+                "data": {
+                    "order_id": order_id,
+                    "status": status,
+                    "filled_quantity": filled_quantity,
+                    "filled_amount": filled_amount,
+                    "price": price,
+                    "updated_at": now
+                }
+            });
+
+            let json_str = serde_json::to_string(&payload).unwrap_or_default();
+            let msg = Message {
+                key: Some(order_id.to_string()),
+                value: json_str,
+            };
+
+            if let Err(e) = producer.send("order_events", msg).await {
+                error!("Failed to publish order event: {}", e);
+            } else {
+                info!("Published order_event for order {}", order_id);
+            }
+        }
     }
 }

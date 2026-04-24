@@ -1,7 +1,13 @@
 //! Risk Service - 风控服务
 //!
-//! Pre-trade 检查 + 实时风险监控
+//! 适用于预测市场 (Prediction Market) 的现货风控规则
+//! 不涉及合约/杠杆/强平等期货概念
+//!
+//! ## gRPC 接口
+//! - CheckRisk: Pre-trade 风控检查
 
-pub mod risk_manager;
+pub mod errors;
+pub mod rules;
+pub mod service;
 
-pub use risk_manager::RiskManager;
+pub use service::RiskServiceImpl;

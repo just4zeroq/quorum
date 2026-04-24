@@ -5,6 +5,7 @@ use tonic::transport::Server as TonicServer;
 use crate::config::Config;
 use crate::services::MarketService;
 use crate::pb::prediction_market_service_server::PredictionMarketServiceServer;
+use queue::{ProducerManager, Config as QueueConfig};
 
 pub struct PredictionMarketServer {
     config: Arc<Config>,
@@ -35,11 +36,27 @@ impl PredictionMarketServer {
             self.config.db.database.as_ref().unwrap_or(&"prediction_market".to_string())
         )).await?;
 
-        let market_service = MarketService::new(pool);
+        // 创建 Portfolio Service gRPC 客户端连接
+        let portfolio_channel = tonic::transport::Channel::from_shared(self.config.portfolio_service_addr.clone())
+            .map_err(|e| format!("Invalid portfolio service address: {}", e))?
+            .connect()
+            .await
+            .map_err(|e| format!("Failed to connect to portfolio service: {}", e))?;
+        let portfolio_client =
+            api::portfolio::portfolio_service_client::PortfolioServiceClient::new(portfolio_channel);
+
+        // 初始化 queue producer for market events
+        let queue_config = QueueConfig::default();
+        let merged_config = queue_config.merge();
+        let event_producer = ProducerManager::new(merged_config);
+        event_producer.init().await.map_err(|e| format!("Failed to init event producer: {}", e))?;
+
+        let market_service = MarketService::new(pool, portfolio_client)
+            .with_event_producer(event_producer);
 
         let reflection_service = tonic_reflection::server::Builder::configure()
             .register_encoded_file_descriptor_set(include_bytes!("pb/prediction_market.desc"))
-            .build()?;
+            .build_v1()?;
 
         TonicServer::builder()
             .add_service(reflection_service)

@@ -10,7 +10,9 @@ authors.workspace = true
 common = { path = "../common" }
 db = { path = "../common/db" }
 cache = { path = "../common/cache" }
+queue = { path = "../common/queue" }
 domain = { path = "../domain" }
+api = { path = "../api" }
 
 # Async runtime
 tokio = { workspace = true }
