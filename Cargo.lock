@@ -5316,15 +5316,25 @@ dependencies = [
 name = "wallet-service"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "common",
+ "config",
+ "db",
  "parking_lot",
+ "prost",
  "rust_decimal",
  "serde",
  "serde_json",
+ "serde_yaml",
+ "sha2 0.10.9",
+ "sqlx",
  "thiserror 1.0.69",
  "tokio",
+ "tonic",
+ "tonic-build",
  "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 
