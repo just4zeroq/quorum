@@ -24,7 +24,7 @@
 | Matching Engine | - | ✅ Core + Queue | ✅ | ✅ |
 | Market Data Service | ✅ | ✅ | ✅ | ✅ |
 | Risk Service | ✅ | - | - | ✅ |
-| Wallet Service | ✅ | - | - | ✅ |
+| Wallet Service | ✅ | ✅ | - | ✅ |
 | Auth Service | ✅ | ✅ | - | - |
 | API Gateway | - | - | - | ✅ |
 | ws-market-data | - | - | - | ✅ |
