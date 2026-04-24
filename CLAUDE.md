@@ -25,7 +25,7 @@
 | Market Data Service | ✅ | ✅ | ✅ | ✅ |
 | Risk Service | ✅ | - | - | ✅ |
 | Wallet Service | ✅ | - | - | ✅ |
-| Auth Service | ✅ | - | - | - |
+| Auth Service | ✅ | ✅ | - | - |
 | API Gateway | - | - | - | ✅ |
 | ws-market-data | - | - | - | ✅ |
 | ws-order | - | - | - | ✅ |
@@ -37,139 +37,29 @@
 
 ### 预测市场订单簿设计 (方案1: 单一 YES 订单簿)
 
-撮合引擎采用**方案1**设计预测市场订单簿：
-
-#### 核心原理
 - **只维护 YES 订单簿**，NO 价格通过互补计算 (SCALE - YES 价格)
 - 每个订单记录 `original_asset` 标识原始下单品种 (YES/NO)
 - 撤单时通过 `order_id` 定位原始订单
 
-#### 价格转换
+**价格转换:**
 ```
-前端展示时:
-  YES 价格: 直接展示
-  NO 价格: SCALE - YES 价格 (互补)
-
-内部处理时:
-  买 YES → YES 簿 Bid
-  卖 YES → YES 簿 Ask
-  买 NO  → YES 簿 Ask (价格取反)
-  卖 NO  → YES 簿 Bid (价格取反)
+买 YES → YES 簿 Bid      买 NO  → YES 簿 Ask (价格取反)
+卖 YES → YES 簿 Ask      卖 NO  → YES 簿 Bid (价格取反)
 ```
 
-#### 数据结构
-```rust
-struct OrderEntry {
-    order_id: OrderId,
-    uid: UserId,
-    price: Price,                    // YES 簿价格
-    action: OrderAction,             // YES 簿方向
-    original_asset: String,          // "1_yes" 或 "1_no"
-    original_action: OrderAction,    // 原始下单方向
-}
-```
-
-#### 优势
-- 数据量减少 50%（vs 双簿方案）
-- 撤单逻辑简单（无需处理镜像订单）
-- 撮合算法统一（只需维护一个订单簿）
-
-### 核心组件
-
-```
-matching-engine/
-├── src/
-│   ├── api/                    # API 类型定义
-│   │   ├── commands.rs         # OrderCommand 命令结构
-│   │   ├── events.rs          # MatcherTradeEvent 成交事件
-│   │   └── types.rs            # 价格/数量/订单类型
-│   ├── core/                   # 核心撮合逻辑
-│   │   ├── exchange.rs         # ExchangeCore 交易所核心
-│   │   ├── pipeline.rs          # Pipeline 处理器流水线
-│   │   ├── journal.rs          # WAL 日志 (rkyv 序列化)
-│   │   ├── snapshot.rs         # 快照管理 (bincode 序列化)
-│   │   ├── processors/          # 处理器
-│   │   │   ├── matching_engine.rs  # 撮合引擎路由
-│   │   │   └── risk_engine.rs     # 风控引擎
-│   │   └── orderbook/          # 订单簿实现
-│   │       ├── direct.rs        # DirectOrderBook (高性能链表)
-│   │       ├── prediction.rs    # PredictionOrderBook (方案1)
-│   │       └── ...
-│   ├── server.rs               # Kafka 消费入口
-│   └── event_emitter.rs        # Kafka 事件发布
-```
-
-### 服务间通信
-
-| 源服务 | 目标服务 | 通信方式 | 说明 |
-|--------|----------|----------|------|
-| Matching Engine | Kafka | Producer | 发布成交/订单事件 |
-| Kafka | Matching Engine | Consumer | 消费 order.commands |
+**优势:** 数据量减少 50%，撤单逻辑简单，撮合算法统一
 
 ## 公共组件
 
-### domain - 领域模型共享包 (crates/domain)
-
-服务对齐的目录结构，按服务拆分模块：
-
-- `order/model` - 订单模型 (Order, OrderStatus, OrderType, OrderSide)
-- `order/event` - 订单事件 (Created, Submitted, Filled, Cancelled, Rejected)
-- `trade/model` - 成交模型 (Trade, TradeSide, TradeQuery)
-- `trade/event` - 成交事件 (Executed, Rollback)
-- `user/model` - 用户模型 (User, UserStatus, UserSession)
-- `user/event` - 用户事件 (Registered, Login, Logout, Frozen)
-- `market_data/model` - 行情模型 (Market, Outcome, OrderBook, Kline, KlineInterval)
-- `market_data/event` - 行情事件 (PriceUpdated, OrderBookUpdated, TradeExecuted, KlineUpdated)
-- `prediction_market/model` - 预测市场模型 (PredictionMarket, MarketOutcome, MarketStatus, Resolution)
-- `prediction_market/event` - 预测市场事件 (MarketCreated, MarketClosed, MarketResolved, OutcomeAdded)
-
-### common/auth - 鉴权组件 (crates/common/auth)
-
-统一鉴权接口，支持多种鉴权方式：
-
-```
-auth/
-├── lib.rs
-├── jwt.rs           # JWT Token 验证
-├── api_key.rs       # API Key 验证
-├── context.rs       # AuthContext (用户信息提取)
-├── error.rs         # AuthError 错误类型
-└── traits.rs        # AuthService trait
-```
-
-### common/rate_limiter - 限流组件 (crates/common/rate_limiter)
-
-支持多种限流算法和存储后端：
-
-```
-rate_limiter/
-├── lib.rs
-├── algorithm/       # 限流算法
-│   ├── token_bucket.rs   # Token Bucket
-│   ├── sliding_window.rs  # 滑动窗口
-│   └── fixed_window.rs   # 固定窗口
-├── store/          # 存储实现
-│   ├── memory.rs        # 内存存储 (测试)
-│   └── redis.rs         # Redis 存储 (生产)
-├── traits.rs       # RateLimiter trait
-└── middleware.rs   # Middleware 辅助
-```
-
-### common/utils - 通用工具模块 (crates/common/utils)
-
-- `token.rs` - JWT Token 生成与验证 (已迁移到 auth)
-- `cipher.rs` - AES-256-GCM 加解密, HMAC, SHA, PBKDF2
-- `wallet.rs` - Ethereum 钱包签名验证 (EIP-191)
-- `id/` - ID 生成器
-  - `order.rs` - 订单 ID 生成 (前缀 `o`)
-  - `trade.rs` - 成交 ID 生成 (前缀 `t`)
-  - `generator.rs` - ID 生成核心
-
-### common/db - 数据库组件 (crates/common/db)
-### common/cache - Redis 缓存组件 (crates/common/cache)
-### common/queue - Kafka 消息队列组件 (crates/common/queue)
-
-详细架构文档见: `docs/ARCHITECTURE.md`
+| 组件 | 路径 | 说明 |
+|------|------|------|
+| `domain` | `crates/domain` | 共享领域模型，按服务拆分 (order/trade/user/market_data/prediction_market)，每个领域含 model/event/shared |
+| `api` | `crates/api` | 统一 gRPC 接口定义包，各服务 proto 编译输出至此 |
+| `db` | `crates/common/db` | 数据库连接池，支持 PostgreSQL / SQLite |
+| `cache` | `crates/common/cache` | Redis 客户端，含分布式锁 |
+| `queue` | `crates/common/queue` | 消息队列，支持 Redis Streams / Kafka 双后端 |
+| `rate_limiter` | `crates/common/rate_limiter` | 限流组件，支持 TokenBucket/SlidingWindow/FixedWindow |
+| `utils` | `crates/common/utils` | 通用工具 (cipher/wallet/id/token) |
 
 ## 技术栈
 
@@ -186,18 +76,13 @@ rate_limiter/
 rust-cex/
 ├── Cargo.toml                    # Workspace 配置
 ├── crates/
-│   ├── common/                   # 公共组件
-│   │   ├── db/                   # 数据库组件 (支持 SQLite/PG)
-│   │   ├── cache/               # Redis 缓存组件
-│   │   ├── queue/               # Kafka 消息队列组件
-│   │   ├── utils/               # 通用工具 (cipher/wallet/id)
-│   │   ├── auth/                # 鉴权组件 (JWT/API Key)
-│   │   └── rate_limiter/        # 限流组件 (Token Bucket/Sliding Window)
+│   ├── common/                   # 公共组件 (db/cache/queue/rate_limiter/utils)
 │   ├── domain/                   # 领域模型共享包
+│   ├── api/                      # 统一 gRPC 接口定义
 │   ├── api-gateway/              # API 网关 (HTTP/WS 入口)
 │   ├── user-service/             # 用户服务
 │   ├── wallet-service/           # 钱包服务
-│   ├── portfolio-service/         # 账户+持仓+清算+账本
+│   ├── portfolio-service/        # 账户+持仓+清算+账本
 │   ├── order-service/            # 订单服务
 │   ├── risk-service/             # 风控服务
 │   ├── auth-service/             # 鉴权服务 (JWT/API Key)
@@ -206,15 +91,11 @@ rust-cex/
 │   ├── prediction-market-service/ # 预测市场服务
 │   └── ws-market-data/           # 行情 WebSocket 服务
 ```
-```
 
 ## 编译命令
 
 ```bash
-# Rust 工具链路径
 export PATH="/home/ubuntu/.cargo/bin:$PATH"
-# 或
-export PATH="/home/ubuntu/.cargo/bin/rustc:$PATH"
 
 # 编译所有服务
 cargo build
@@ -223,17 +104,14 @@ cargo build
 cargo build -p user-service
 cargo build -p market-data-service
 
-# 运行测试 (SQLite)
+# 运行测试
 cargo test -p user-service
 
 # 运行服务
 cargo run -p user-service
-cargo run -p api-gateway
 ```
 
 ## 服务列表
-
-### 核心业务服务
 
 | 服务 | 端口 | 数据库 | 说明 |
 |------|------|--------|------|
@@ -247,24 +125,14 @@ cargo run -p api-gateway
 | Prediction Market Service | 50008 | 主数据库 | 市场管理/结算/派彩 |
 | Auth Service | 50009 | 独立 | JWT/API Key 鉴权 |
 | ws-market-data | 50016 | - | WebSocket 行情推送 |
-
-### 网关
-
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| API Gateway | 8080 | HTTP/WS 统一入口 |
+| API Gateway | 8080 | - | HTTP/WS 统一入口 |
 
 ### Portfolio Service 模块
 
-合并自:
-- Account Service (账户余额)
-- Position Service (持仓管理)
-- Clearing Service (结算清算)
-- Ledger Service (账本流水)
+合并自: Account Service + Position Service + Clearing Service + Ledger Service
 
 ### Auth Service 模块
 
-提供 API 和 WebSocket 鉴权:
 - JWT Token 管理 (Access/Refresh)
 - API Key 管理
 - Session 管理
@@ -287,56 +155,13 @@ cargo run -p api-gateway
 ## 整体架构
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         用户                                      │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │ API Gateway │ 8080
-                    │ HTTP/WS     │
-                    └──────┬──────┘
-                           │
-        ┌──────────────────┼──────────────────┐
-        │                  │                  │
-   gRPC ▼             gRPC ▼             gRPC ▼
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│   User       │  │   Market     │  │   Order      │
-│  Service     │  │   Data Svc   │  │  Service     │
-│   50001      │  │   50006      │  │   50003      │
-└──────────────┘  └──────┬───────┘  └──────┬───────┘
-                         │                  │
-   ┌─────────────────────┼──────────────────┼─────────────────────┐
-   │                     │                  │                     │
-   │               ┌─────▼─────────────────▼─────┐               │
-   │               │       Matching Engine         │               │
-   │               │          50009               │               │
-   │               │    ┌───────────────────┐     │               │
-   │               │    │   内存 CLOB       │     │               │
-   │               │    │   + WAL 持久化    │     │               │
-   │               │    └───────────────────┘     │               │
-   │               └─────────────┬─────────────────┘               │
-   │                             │                               │
-   │              ┌──────────────┼──────────────┐                │
-   │              ▼              ▼              ▼                │
-   │      ┌────────────┐ ┌────────────┐ ┌────────────┐           │
-   │      │  Market   │ │  Account   │ │ Position   │           │
-   │      │  Data Svc │ │  Service   │ │  Service   │           │
-   │      └─────┬─────┘ └─────┬──────┘ └─────┬──────┘           │
-   │            │             │             │                    │
-   │            │             └──────┬──────┘                    │
-   │            │                    │                           │
-   │      ┌─────▼─────┐      ┌──────▼──────┐                   │
-   │      │ ws-market │      │   Ledger    │                   │
-   │      │ -data     │      │   Service   │                   │
-   │      │  50016    │      │   50011     │                   │
-   │      └───────────┘      └─────────────┘                   │
-   │                                                              │
-   └──────────────────────────────────────────────────────────────┘
-                                    │
-                         ┌──────────▼──────────┐
-                         │  Kafka             │
-                         │  事件总线           │
-                         └─────────────────────┘
+用户 → API Gateway(8080) → gRPC → 各业务服务
+                            ↓
+                    Matching Engine
+                            ↓
+                         Kafka
+                            ↓
+              ws-market-data / Portfolio / Order / ...
 ```
 
 ## 数据库规划
@@ -347,16 +172,10 @@ cargo run -p api-gateway
 | Wallet Service | ✅ | ✅ | 独立 |
 | Order Service | ✅ | ✅ | 独立 |
 | Risk Service | ✅ | ✅ | 独立 |
-| Position Service | ✅ | ✅ | 独立 |
 | Market Data Service | ✅ | ✅ | 共享 Prediction Market DB |
-| Admin Service | ✅ | ✅ | 独立 |
-| Clearing Service | ✅ | ✅ | 独立 |
 | Matching Engine | ❌ | 内存 + WAL | 无 DB |
 | Prediction Market Service | ✅ | ✅ | 主数据库 |
-| Ledger Service | ✅ | ✅ | 独立 |
-| Trade Service | ✅ | ✅ | 独立 |
-| Account Service | ✅ | ✅ | 独立 |
-| Reconciliation Service | ✅ | ✅ | 独立 |
+| Portfolio Service | ✅ | ✅ | 独立 |
 
 ## 服务间通信
 
@@ -366,11 +185,8 @@ cargo run -p api-gateway
 | Order Service | Matching Engine | gRPC | 下单/撤单 |
 | Matching Engine | Kafka | Kafka | 发布成交/订单事件 |
 | Kafka | Order Service | Kafka Consumer | 订单状态更新 |
-| Kafka | Position Service | Kafka Consumer | 持仓更新 |
-| Kafka | Account Service | Kafka Consumer | 余额更新 |
+| Kafka | Portfolio Service | Kafka Consumer | 持仓/余额更新 |
 | Kafka | ws-market-data | Kafka Consumer | 行情推送 |
-| Kafka | ws-order | Kafka Consumer | 订单状态推送 |
-| Kafka | ws-prediction | Kafka Consumer | 市场事件推送 |
 | Prediction Market Service | Matching Engine | gRPC | 创建市场/结算 |
 | Prediction Market Service | Market Data Service | 共享 DB | 市场数据 |
 
@@ -388,29 +204,20 @@ cargo run -p api-gateway
 
 ## gRPC 服务代码结构
 
-所有微服务使用 Tonic 实现 gRPC，API Gateway 统一提供 HTTP 接口。
-
 ```
 {service}/
 ├── Cargo.toml                  # 依赖: tonic, prost, tonic-build
-├── build.rs                    # Proto 编译配置
+├── build.rs                    # Proto 编译配置 (输出到 crates/api/src/)
 ├── config/
-│   └── {service}.yaml          # 服务配置
+│   └── {service}.yaml
 └── src/
     ├── lib.rs                  # 模块导出
     ├── main.rs                 # 入口
-    ├── config.rs               # 配置加载
     ├── models.rs               # 数据模型
-    ├── pb.rs                   # Proto 生成代码引入
     ├── pb/
-    │   ├── {service}.proto     # Proto 定义
-    │   ├── {service}.rs        # 生成代码 (auto)
-    │   └── {service}.desc      # 描述符 (auto)
+    │   └── {service}.proto     # Proto 定义 (源文件)
     ├── repository/
-    │   ├── mod.rs
-    │   └── {entity}_repo.rs    # 数据库操作
     └── services/
-        ├── mod.rs
         └── {service}.rs        # gRPC 服务实现
 ```
 
@@ -418,56 +225,39 @@ cargo run -p api-gateway
 
 ```protobuf
 syntax = "proto3";
+package order;
 
-package {service};
-
-service {ServiceName}Service {
-    rpc Method1(Method1Request) returns (Method1Response);
-    rpc Method2(Method2Request) returns (Method2Response);
+service OrderService {
+    rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
 }
 
-message Method1Request {
-    string param = 1;
+message CreateOrderRequest {
+    int64 user_id = 1;
+    string price = 2;    // Decimal 用 string 传输
 }
 
-message Method1Response {
+message CreateOrderResponse {
     bool success = 1;
-    string message = 2;
+    string order_id = 2;
 }
 ```
 
 ### gRPC 服务实现示例
 
 ```rust
-// services/{service}.rs
 use tonic::{Request, Response, Status};
-use crate::pb::{service_name_service_server::ServiceNameService, *};
+use api::order::{order_service_server::OrderService, *};
 
-pub struct ServiceNameServiceImpl {
-    pool: sqlx::PgPool,
-}
+pub struct OrderServiceImpl { pool: sqlx::PgPool }
 
 #[tonic::async_trait]
-impl ServiceNameService for ServiceNameServiceImpl {
-    async fn method1(
-        &self,
-        request: Request<Method1Request>,
-    ) -> Result<Response<Method1Response>, Status> {
-        // 业务逻辑
-        Ok(Response::new(Method1Response {
-            success: true,
-            message: "OK".to_string(),
-        }))
+impl OrderService for OrderServiceImpl {
+    async fn create_order(&self, request: Request<CreateOrderRequest>)
+        -> Result<Response<CreateOrderResponse>, Status> {
+        Ok(Response::new(CreateOrderResponse { success: true, order_id: "o_xxx".to_string() }))
     }
 }
 ```
-
-### 注意事项
-
-- 服务端使用 tonic，不依赖 salvo
-- API Gateway 负责 HTTP -> gRPC 转换
-- Proto 文件放在 `src/pb/` 目录
-- build.rs 配置 tonic-build 生成代码
 
 ---
 
@@ -476,346 +266,20 @@ impl ServiceNameService for ServiceNameServiceImpl {
 ### 架构原则
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         API Gateway                               │
-│              依赖 crates/api (接口定义)                          │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         crates/api                               │
-│              统一接口定义，所有服务依赖此包                       │
-│   ├── user.rs (来自 user-service)                               │
-│   ├── order.rs (来自 order-service)                             │
-│   ├── auth.rs (来自 auth-service)                              │
-│   └── ...                                                      │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-        ┌─────────────────┼─────────────────┐
-        ▼                 ▼                 ▼
-┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│user-service │   │order-service│   │auth-service │
-│  src/pb/   │   │   src/pb/   │   │   src/pb/   │
-│ user.proto  │   │order.proto │   │ auth.proto  │
-└─────────────┘   └─────────────┘   └─────────────┘
+domain (纯业务模型)
+  ↓
+api (接口定义 + 序列化)
+  ↓
+services (服务实现)
+  ↓
+gateway (API 网关)
 ```
 
-### 设计原则
-
-1. **Proto 文件放在各自服务** - 源文件 `src/pb/*.proto` 保留在服务目录
-2. **生成代码输出到 crates/api** - build.rs 配置输出到 `crates/api/src/`
-3. **统一依赖** - 所有组件依赖 `api = { path = "../api" }`
-4. **单向依赖** - domain → api → services → gateway
-
-### 服务 Proto 定义模板
-
-```rust
-// {service}/build.rs
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let api_src = manifest_dir
-        .parent().unwrap()
-        .parent().unwrap()
-        .join("crates/api/src");
-
-    std::fs::create_dir_all(&api_src)?;
-
-    tonic_build::configure()
-        .build_server(true)           // 生成服务端代码
-        .build_client(true)          // 生成客户端代码
-        .file_descriptor_set_path(&api_src.join("{service}.desc"))
-        .out_dir(&api_src)
-        .compile_protos(
-            &[manifest_dir.join("src/pb/{service}.proto")],
-            &[manifest_dir.join("src/pb")],
-        )?;
-    Ok(())
-}
-```
-
-### crates/api/src/lib.rs 结构
-
-```rust
-pub mod user {
-    include!("user.rs");
-}
-
-pub mod order {
-    include!("order.rs");
-}
-
-pub mod auth {
-    include!("auth.rs");
-}
-
-// ... 其他服务模块
-
-// 便捷导出
-pub use user::user_service_client::UserServiceClient;
-pub use order::order_service_client::OrderServiceClient;
-pub use auth::auth_service_client::AuthServiceClient;
-```
-
-### 服务间依赖关系
-
-| 包 | 依赖 | 说明 |
-|----|------|------|
-| `domain` | 无 | 纯业务模型，无序列化 |
-| `api` | 无 | 接口定义 + 序列化注解 |
-| `user-service` | domain, api | 服务实现 |
-| `order-service` | domain, api | 服务实现 |
-| `api-gateway` | api, common | 依赖接口，不依赖服务实现 |
-| `ws-*` | api | WebSocket 服务 |
-
-### 新增服务流程
-
-1. 在 `src/pb/` 创建 `*.proto` 文件
-2. 配置 `build.rs` 输出到 `crates/api/src/`
-3. 服务 `Cargo.toml` 添加 `api = { path = "../api" }`
-4. 在 `crates/api/src/lib.rs` 添加 `pub mod {service};`
-5. 其他服务/Gateway 依赖 `api` 使用接口
-
-### Proto 命名规范
-
-- 服务名使用下划线: `user_service.proto`
-- 生成模块使用下划线: `pub mod user { include!("user.rs"); }`
-- 生成的 Client: `UserServiceClient`
-
----
-
-## 公共组件规范
-
-### common/db - 数据库组件
-
-```
-common/db/
-├── src/
-│   ├── lib.rs          # 模块导出
-│   ├── pool.rs         # DBPool / DBManager
-│   └── config.rs       # 配置
-```
-
-**核心类型:**
-- `DBPool` - 统一连接池 (`Postgres(PgPool)` | `Sqlite(SqlitePool)`)
-- `DBManager` - 连接池管理器 (`init` / `get_pool` / `close`)
-- `DBError` - 数据库错误枚举
-
-**使用方式:**
-```rust
-use db::{DBManager, DBPool, Result};
-
-let manager = DBManager::new(config);
-manager.init().await?;
-
-if let Some(pool) = manager.get_pool().await {
-    match pool {
-        DBPool::Postgres(pg) => { /* 使用 PgPool */ }
-        DBPool::Sqlite(sqlite) => { /* 使用 SqlitePool */ }
-    }
-}
-```
-
-### common/cache - Redis 缓存组件
-
-```
-common/cache/
-├── src/
-│   ├── lib.rs          # 模块导出
-│   ├── client.rs       # RedisClient / CacheManager
-│   └── config.rs       # 配置
-```
-
-**核心类型:**
-- `RedisClient` - 包装 `redis::aio::ConnectionManager`
-- `CacheManager` - 缓存管理器 (`init` / `get_client`)
-- `CacheError` - 缓存错误枚举
-
-**主要方法:**
-- `get/set/set_ex/set_px` - 字符串操作
-- `hget/hset/hgetall` - Hash 操作
-- `incr/incr_by/incr_with_expire` - 自增操作
-- `lock/unlock` - 分布式锁 (Lua 脚本)
-- `del/exists/expire/pexpire` - 通用操作
-
-### common/queue - 消息队列组件 (Redis/Kafka 双后端)
-
-```
-common/queue/
-├── src/
-│   ├── lib.rs              # 模块导出
-│   ├── config.rs           # Backend / Config / MergedConfig
-│   ├── producer.rs         # MessageProducer / ProducerManager
-│   ├── consumer.rs         # MessageConsumer / ConsumerManager
-│   ├── consumer_handler.rs # ConsumerManagerWithHandler / MessageHandler
-│   ├── kafka_producer.rs   # Kafka 生产者实现
-│   └── kafka_consumer.rs   # Kafka 消费者实现
-```
-
-**核心类型:**
-- `Backend` - 后端枚举 (`Redis` | `Kafka`)
-- `Message` - `{ key: Option<String>, value: String }`
-- `ConsumeMessage` - `{ key, value, topic }`
-- `ProducerManager` - 统一生产者管理器
-- `ConsumerManager` - 统一消费者管理器
-
-**使用方式:**
-```rust
-use queue::{ProducerManager, Message, Backend};
-
-// 生产者
-let producer = ProducerManager::new(config);
-producer.init().await?;
-producer.send_string("topic", Some("key"), "value").await?;
-producer.send_json("topic", None, &my_struct).await?;
-
-// 消费者
-let consumer = ConsumerManager::new(config, "topic");
-consumer.init().await?;
-while let Ok(Some(msg)) = consumer.consume().await {
-    println!("{}: {}", msg.topic, msg.value);
-}
-```
-
-### common/rate_limiter - 限流组件
-
-```
-common/rate_limiter/
-├── src/
-│   ├── lib.rs              # 模块导出
-│   ├── traits.rs           # RateLimiter / RateLimitKey / RateLimitResult
-│   ├── algorithm/          # 限流算法
-│   │   ├── token_bucket.rs
-│   │   ├── sliding_window.rs
-│   │   └── fixed_window.rs
-│   ├── store/              # 存储实现
-│   │   ├── memory.rs
-│   │   └── redis.rs
-│   └── middleware.rs       # Axum 中间件
-```
-
-**核心类型:**
-- `RateLimiter` - 限流器 trait
-- `RateLimitKey` - 限流键 (`user_id` + `ip` + `endpoint`)
-- `RateLimitResult` - `{ allowed, remaining, reset_at_ms }`
-- `MemoryStore` / `RedisStore` - 存储实现
-
-**使用方式:**
-```rust
-use rate_limiter::{MemoryStore, Algorithm};
-
-let limiter = MemoryStore::new(Algorithm::SlidingWindow {
-    window_ms: 60_000,
-    max_requests: 100,
-});
-
-let key = RateLimitKey::new()
-    .with_user("user_id")
-    .with_ip("127.0.0.1")
-    .with_endpoint("/api/orders");
-
-let result = limiter.check_and_consume(&key, 1).await?;
-```
-
----
-
-## 领域模型 (domain)
-
-### 目录结构
-
-```
-domain/
-├── src/
-│   ├── lib.rs              # 模块导出
-│   ├── order/              # 订单领域
-│   │   ├── mod.rs
-│   │   ├── model/          # 订单数据模型
-│   │   ├── event/          # 订单事件
-│   │   └── shared/         # 共享模型
-│   ├── trade/              # 成交领域
-│   ├── user/               # 用户领域
-│   ├── market_data/        # 行情领域
-│   └── prediction_market/  # 预测市场领域
-```
-
-**每个领域包含:**
-- `model/` - 数据模型 (纯 Rust struct/enum, `Serialize`/`Deserialize`)
-- `event/` - 领域事件 (Kafka 消息体)
-- `shared/` - 跨领域共享模型
-
-**与 api 包的区别:**
-- `domain` - 纯业务模型，无 gRPC/Protobuf 依赖
-- `api` - gRPC 接口定义，包含 `prost::Message` 注解
-
-### 模型定义示例
-
-```rust
-// domain/src/order/model/mod.rs
-use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum OrderStatus {
-    Pending,
-    Submitted,
-    PartiallyFilled,
-    Filled,
-    Cancelled,
-    Rejected,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Order {
-    pub id: String,
-    pub user_id: i64,
-    pub market_id: i64,
-    pub side: OrderSide,
-    pub order_type: OrderType,
-    pub price: Decimal,
-    pub quantity: Decimal,
-    pub filled_quantity: Decimal,
-    pub status: OrderStatus,
-    pub created_at: i64,
-}
-```
-
----
-
-## gRPC 接口定义规范
-
-### 架构原则
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         API Gateway                               │
-│              依赖 crates/api (接口定义)                          │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         crates/api                               │
-│              统一接口定义，所有服务依赖此包                       │
-│   ├── user.rs (来自 user-service)                               │
-│   ├── order.rs (来自 order-service)                             │
-│   ├── auth.rs (来自 auth-service)                              │
-│   └── ...                                                      │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-        ┌─────────────────┼─────────────────┐
-        ▼                 ▼                 ▼
-┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│user-service │   │order-service│   │auth-service │
-│  src/pb/    │   │   src/pb/   │   │   src/pb/   │
-│ user.proto  │   │order.proto  │   │ auth.proto  │
-└─────────────┘   └─────────────┘   └─────────────┘
-```
-
-### 设计原则
-
-1. **Proto 文件放在各自服务** - 源文件 `src/pb/*.proto` 保留在服务目录
-2. **生成代码输出到 crates/api** - build.rs 配置输出到 `crates/api/src/`
-3. **统一依赖** - 所有组件依赖 `api = { path = "../api" }`
-4. **单向依赖** - domain → api → services → gateway
+**设计原则:**
+1. Proto 文件放在各自服务 `src/pb/*.proto`
+2. 生成代码输出到 `crates/api/src/` (通过 build.rs)
+3. 统一依赖: `api = { path = "../api" }`
+4. 单向依赖: domain → api → services → gateway
 
 ### 服务 build.rs 模板
 
@@ -823,15 +287,14 @@ pub struct Order {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let api_src = manifest_dir
-        .parent().unwrap()
-        .parent().unwrap()
+        .parent().unwrap().parent().unwrap()
         .join("crates/api/src");
 
     std::fs::create_dir_all(&api_src)?;
 
     tonic_build::configure()
-        .build_server(true)           // 生成服务端代码
-        .build_client(true)          // 生成客户端代码
+        .build_server(true)
+        .build_client(true)
         .file_descriptor_set_path(&api_src.join("{service}.desc"))
         .out_dir(&api_src)
         .compile_protos(
@@ -845,73 +308,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### crates/api/src/lib.rs 结构
 
 ```rust
-pub mod user {
-    include!("user.rs");
-}
+pub mod user { include!("user.rs"); }
+pub mod order { include!("order.rs"); }
+pub mod auth { include!("auth.rs"); }
 
-pub mod order {
-    include!("order.rs");
-}
-
-pub mod auth {
-    include!("auth.rs");
-}
-
-// 便捷导出
 pub use user::user_service_client::UserServiceClient;
-pub use order::order_service_client::OrderServiceClient;
-pub use auth::auth_service_client::AuthServiceClient;
 ```
 
-### 服务间依赖关系
-
-| 包 | 依赖 | 说明 |
-|----|------|------|
-| `domain` | 无 | 纯业务模型，无序列化 |
-| `api` | 无 | 接口定义 + 序列化注解 |
-| `user-service` | domain, api | 服务实现 |
-| `order-service` | domain, api | 服务实现 |
-| `api-gateway` | api, common | 依赖接口，不依赖服务实现 |
-| `ws-*` | api | WebSocket 服务 |
-
-### Proto 定义规范
-
-```protobuf
-syntax = "proto3";
-
-package order;
-
-service OrderService {
-    rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
-    rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
-}
-
-// 请求消息
-message CreateOrderRequest {
-    int64 user_id = 1;
-    int64 market_id = 2;
-    string side = 3;       // buy, sell
-    string price = 4;      // Decimal 用 string 传输
-    string quantity = 5;
-}
-
-// 响应消息
-message CreateOrderResponse {
-    bool success = 1;
-    string order_id = 2;
-    Order order = 3;
-}
-
-// 数据模型
-message Order {
-    string id = 1;
-    int64 user_id = 2;
-    string price = 3;
-    string status = 4;
-}
-```
-
-**类型映射规范:**
+### 类型映射规范
 
 | Rust 类型 | Proto 类型 | 说明 |
 |-----------|-----------|------|
@@ -922,46 +326,16 @@ message Order {
 | `Option<T>` | `optional` | 可选字段 |
 | `bool` | `bool` | 布尔值 |
 
-### gRPC 服务实现示例
-
-```rust
-use tonic::{Request, Response, Status};
-use api::order::{order_service_server::OrderService, *};
-
-pub struct OrderServiceImpl {
-    pool: sqlx::PgPool,
-}
-
-#[tonic::async_trait]
-impl OrderService for OrderServiceImpl {
-    async fn create_order(
-        &self,
-        request: Request<CreateOrderRequest>,
-    ) -> Result<Response<CreateOrderResponse>, Status> {
-        let req = request.into_inner();
-        // 业务逻辑...
-        Ok(Response::new(CreateOrderResponse {
-            success: true,
-            order_id: "o_xxx".to_string(),
-            order: None,
-        }))
-    }
-}
-```
-
 ### 新增服务流程
 
 1. 在 `src/pb/` 创建 `*.proto` 文件
 2. 配置 `build.rs` 输出到 `crates/api/src/`
 3. 服务 `Cargo.toml` 添加 `api = { path = "../api" }`
 4. 在 `crates/api/src/lib.rs` 添加 `pub mod {service};`
-5. 其他服务/Gateway 依赖 `api` 使用接口
 
 ### 注意事项
 
 - 服务端使用 tonic，不依赖 salvo
 - API Gateway 负责 HTTP -> gRPC 转换
-- Proto 文件放在 `src/pb/` 目录
-- build.rs 配置 tonic-build 生成代码到 `crates/api/src/`
-- 生成文件包括: `{service}.rs` (代码) 和 `{service}.desc` (描述符)
 - `Decimal` 类型在 proto 中使用 `string` 传输
+- 生成文件: `{service}.rs` (代码) + `{service}.desc` (描述符)
