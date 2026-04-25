@@ -88,8 +88,8 @@ impl OrderServer {
             .build_v1()?;
 
         // 启动 Queue 消费者
-        if let Some(consumer) = self.queue_consumer.take() {
-            let handle = tokio::spawn(async move {
+        if let Some(mut consumer) = self.queue_consumer.take() {
+            let _handle = tokio::spawn(async move {
                 consumer.start().await;
             });
             tracing::info!("Queue consumer started for match.events");

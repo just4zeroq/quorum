@@ -2412,6 +2412,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "bytes",
+ "chrono",
  "core_affinity",
  "criterion",
  "disruptor",
@@ -2731,6 +2732,8 @@ dependencies = [
 name = "order-service"
 version = "0.1.0"
 dependencies = [
+ "api",
+ "async-trait",
  "chrono",
  "common",
  "config",

@@ -502,7 +502,53 @@ pub async fn create_order(req: &mut Request, depot: &mut Depot, res: &mut Respon
         }
     }
 
-    // 步骤2: 调用 Order Service gRPC
+    // 步骤2: Portfolio.Freeze - 冻结保证金
+    let is_buy = matches!(payload.side.to_lowercase().as_str(), "buy" | "yes" | "bid");
+    let freeze_ref = format!("fr_{}", uuid::Uuid::new_v4().to_string().replace("-", "").chars().take(20).collect::<String>());
+
+    let freeze_amount = if is_buy {
+        // 买单冻结 USDC = price * quantity
+        let p: rust_decimal::Decimal = payload.price.parse().unwrap_or_default();
+        let q: rust_decimal::Decimal = payload.quantity.parse().unwrap_or_default();
+        (p * q).to_string()
+    } else {
+        // 卖单冻结对应数量
+        payload.quantity.clone()
+    };
+
+    let mut freeze_ok = false;
+    match create_portfolio_client(config.portfolio_service_addr.clone()).await {
+        Ok(mut client) => {
+            let asset = if is_buy { "USDC" } else { &payload.side.to_uppercase() };
+            let grpc_req = api::portfolio::FreezeRequest {
+                user_id: user_id.clone(),
+                asset: asset.to_string(),
+                amount: freeze_amount.clone(),
+                order_id: freeze_ref.clone(),
+            };
+            match client.freeze(grpc_req).await {
+                Ok(_) => {
+                    tracing::debug!("Portfolio freeze success for user {}: {} {}", user_id, freeze_amount, asset);
+                    freeze_ok = true;
+                }
+                Err(e) => {
+                    tracing::warn!("Portfolio freeze failed for user {}: {:?}", user_id, e);
+                    res.status_code(StatusCode::BAD_REQUEST);
+                    res.render(Json(serde_json::json!({
+                        "success": false,
+                        "error": "Insufficient balance"
+                    })));
+                    return Ok(());
+                }
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to connect to portfolio service, proceeding without freeze: {:?}", e);
+            // 熔断降级
+        }
+    }
+
+    // 步骤3: 调用 Order Service gRPC
     let user_id_i64: i64 = user_id.replace("usr_", "").parse().unwrap_or(0);
     match create_order_client(config.order_service_addr).await {
         Ok(mut client) => {
@@ -537,6 +583,20 @@ pub async fn create_order(req: &mut Request, depot: &mut Depot, res: &mut Respon
                     }));
                 }
                 Err(e) => {
+                    // 如果之前 freeze 成功了，需要解冻
+                    if freeze_ok {
+                        if let Ok(mut client) = create_portfolio_client(config.portfolio_service_addr.clone()).await {
+                            let unfreeze_req = api::portfolio::UnfreezeRequest {
+                                user_id: user_id.clone(),
+                                asset: if is_buy { "USDC".to_string() } else { payload.side.to_uppercase() },
+                                amount: freeze_amount.clone(),
+                                order_id: freeze_ref.clone(),
+                            };
+                            let _ = client.unfreeze(unfreeze_req).await;
+                            tracing::warn!("Unfrozen {} {} for user {} after order creation failure", freeze_amount, if is_buy { "USDC" } else { "YES" }, user_id);
+                        }
+                    }
+
                     tracing::error!("Order service create_order failed: {:?}", e);
                     res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                     res.render(Json(serde_json::json!({

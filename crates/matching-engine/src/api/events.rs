@@ -23,6 +23,12 @@ pub struct MatcherTradeEvent {
     pub matched_order_id: OrderId,
     pub matched_order_uid: UserId,
     pub bidder_hold_price: Price, // 买单预留价格
+    /// 吃单方订单ID（从 OrderCommand.order_id 填充）
+    pub taker_order_id: OrderId,
+    /// 吃单方用户ID（从 OrderCommand.uid 填充）
+    pub taker_uid: UserId,
+    /// 市场ID（从 OrderCommand.symbol 填充）
+    pub symbol: SymbolId,
 }
 
 impl Default for MatcherTradeEvent {
@@ -34,6 +40,9 @@ impl Default for MatcherTradeEvent {
             matched_order_id: 0,
             matched_order_uid: 0,
             bidder_hold_price: 0,
+            taker_order_id: 0,
+            taker_uid: 0,
+            symbol: 0,
         }
     }
 }
@@ -53,6 +62,9 @@ impl MatcherTradeEvent {
             matched_order_id,
             matched_order_uid,
             bidder_hold_price,
+            taker_order_id: 0,
+            taker_uid: 0,
+            symbol: 0,
         }
     }
 
@@ -64,6 +76,9 @@ impl MatcherTradeEvent {
             matched_order_id: 0,
             matched_order_uid: 0,
             bidder_hold_price: 0,
+            taker_order_id: 0,
+            taker_uid: 0,
+            symbol: 0,
         }
     }
 }

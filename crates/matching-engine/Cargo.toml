@@ -44,6 +44,9 @@ bytes = "1"
 queue = { path = "../common/queue" }
 serde_json = { workspace = true }
 
+# Time
+chrono = { workspace = true }
+
 [dev-dependencies]
 criterion = "0.5.1"
 

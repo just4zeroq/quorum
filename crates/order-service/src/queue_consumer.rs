@@ -1,15 +1,41 @@
 //! Queue Consumer - 消费撮合事件
+//!
+//! 从 match.events 主题消费撮合结果，更新订单状态并调用 Portfolio.SettleTrade 完成清算
 
-use queue::{MessageConsumer, ConsumerManager, ProducerManager, Message};
+use queue::{ConsumerManager, ProducerManager, Message};
 use crate::repository::OrderRepository;
 use crate::models::OrderStatus;
+use rust_decimal::Decimal;
+use tonic::transport::Channel;
 use tracing::{info, error};
+
+/// ID 前缀常量
+const ORDER_ID_PREFIX: &str = "ord_";
+const USER_ID_PREFIX: &str = "usr_";
+
+/// 撮合事件（从 matching-engine 接收，包含 taker/maker 上下文）
+#[derive(serde::Deserialize, Debug)]
+struct MatchEvent {
+    event_type: String,
+    size: i64,
+    price: i64,
+    matched_order_id: u64,
+    matched_order_uid: u64,
+    #[allow(dead_code)]
+    bidder_hold_price: i64,
+    taker_order_id: Option<u64>,
+    taker_uid: Option<u64>,
+    symbol: Option<i32>,
+    taker_action: Option<String>,
+}
 
 /// 撮合事件消费者
 pub struct MatchEventConsumer {
     consumer: ConsumerManager,
     order_repo: OrderRepository,
     event_producer: Option<ProducerManager>,
+    /// Portfolio Service gRPC 客户端
+    portfolio_client: Option<api::portfolio::portfolio_service_client::PortfolioServiceClient<Channel>>,
 }
 
 impl MatchEventConsumer {
@@ -18,6 +44,7 @@ impl MatchEventConsumer {
             consumer,
             order_repo,
             event_producer: None,
+            portfolio_client: None,
         }
     }
 
@@ -27,8 +54,17 @@ impl MatchEventConsumer {
         self
     }
 
+    /// 设置 Portfolio 客户端
+    pub fn with_portfolio_client(
+        mut self,
+        client: api::portfolio::portfolio_service_client::PortfolioServiceClient<Channel>,
+    ) -> Self {
+        self.portfolio_client = Some(client);
+        self
+    }
+
     /// 启动消费
-    pub async fn start(&self) {
+    pub async fn start(&mut self) {
         info!("MatchEventConsumer starting...");
 
         loop {
@@ -39,7 +75,6 @@ impl MatchEventConsumer {
                     }
                 }
                 Ok(None) => {
-                    // No message available, continue polling
                     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                 }
                 Err(e) => {
@@ -50,53 +85,57 @@ impl MatchEventConsumer {
     }
 
     /// 处理消息
-    async fn process_message(&self, data: &str) -> Result<(), String> {
-        #[derive(serde::Deserialize)]
-        struct TradeEvent {
-            event_type: String,
-            size: i64,
-            price: i64,
-            matched_order_id: u64,
-            matched_order_uid: u64,
-        }
-
-        let event: TradeEvent = serde_json::from_str(data)
+    async fn process_message(&mut self, data: &str) -> Result<(), String> {
+        let event: MatchEvent = serde_json::from_str(data)
             .map_err(|e| format!("Failed to parse event: {}", e))?;
 
         match event.event_type.as_str() {
             "Trade" => {
-                info!("Processing trade event for order {}", event.matched_order_id);
+                info!("Processing trade event: matched_order_id={}, taker_uid={:?}, symbol={:?}",
+                    event.matched_order_id, event.taker_uid, event.symbol);
+
+                // 1. 更新 maker 订单状态
                 let filled_quantity = event.size.to_string();
                 let filled_amount = (event.size * event.price).to_string();
+                let db_order_id = format!("{}{}", ORDER_ID_PREFIX, event.matched_order_id);
                 self.order_repo.update_status(
-                    &event.matched_order_id.to_string(),
+                    &db_order_id,
                     &OrderStatus::Filled.to_string(),
                     &filled_quantity,
                     &filled_amount,
                 ).await.map_err(|e| e.to_string())?;
 
-                // 发布 order_events
+                // 2. 发布 order_events
                 self.publish_order_event(
-                    &event.matched_order_id.to_string(),
+                    &db_order_id,
                     event.matched_order_uid as i64,
                     "filled",
                     &filled_quantity,
                     &filled_amount,
                     &event.price.to_string(),
                 ).await;
+
+                // 3. 调用 Portfolio.SettleTrade 完成清算
+                if let Some(ref mut client) = self.portfolio_client {
+                    if let Err(e) = Self::settle_trade(client, &event).await {
+                        error!("Portfolio.SettleTrade failed: {}", e);
+                    }
+                } else {
+                    info!("No portfolio client configured, skipping SettleTrade");
+                }
             }
             "Reject" => {
                 info!("Processing reject event for order {}", event.matched_order_id);
+                let db_order_id = format!("{}{}", ORDER_ID_PREFIX, event.matched_order_id);
                 self.order_repo.update_status(
-                    &event.matched_order_id.to_string(),
+                    &db_order_id,
                     &OrderStatus::Rejected.to_string(),
-                    &"0".to_string(),
-                    &"0".to_string(),
+                    "0",
+                    "0",
                 ).await.map_err(|e| e.to_string())?;
 
-                // 发布 order_events
                 self.publish_order_event(
-                    &event.matched_order_id.to_string(),
+                    &db_order_id,
                     event.matched_order_uid as i64,
                     "rejected",
                     "0",
@@ -108,16 +147,16 @@ impl MatchEventConsumer {
                 info!("Processing reduce event for order {}", event.matched_order_id);
                 let filled_quantity = event.size.to_string();
                 let filled_amount = (event.size * event.price).to_string();
+                let db_order_id = format!("{}{}", ORDER_ID_PREFIX, event.matched_order_id);
                 self.order_repo.update_status(
-                    &event.matched_order_id.to_string(),
+                    &db_order_id,
                     &OrderStatus::PartiallyFilled.to_string(),
                     &filled_quantity,
                     &filled_amount,
                 ).await.map_err(|e| e.to_string())?;
 
-                // 发布 order_events
                 self.publish_order_event(
-                    &event.matched_order_id.to_string(),
+                    &db_order_id,
                     event.matched_order_uid as i64,
                     "partially_filled",
                     &filled_quantity,
@@ -131,6 +170,62 @@ impl MatchEventConsumer {
         }
 
         Ok(())
+    }
+
+    /// 调用 Portfolio.SettleTrade 完成一笔成交的清算
+    async fn settle_trade(
+        client: &mut api::portfolio::portfolio_service_client::PortfolioServiceClient<Channel>,
+        event: &MatchEvent,
+    ) -> Result<(), String> {
+        // 解出 market_id / outcome_id
+        let symbol = event.symbol.unwrap_or(0) as i64;
+        let market_id = symbol / utils::constants::OUTCOME_MULTIPLIER;
+        let outcome_id = symbol % utils::constants::OUTCOME_MULTIPLIER;
+
+        if market_id == 0 {
+            return Err("Invalid market_id (symbol=0)".to_string());
+        }
+
+        // 转换价格和数量（i64 scaled → Decimal string）
+        let price_dec = Decimal::new(event.price, 0)
+            / Decimal::new(utils::constants::PRICE_SCALE, 0);
+        let size_dec = Decimal::new(event.size, 0);
+
+        let taker_uid = event.taker_uid.unwrap_or(0);
+        let maker_uid = event.matched_order_uid;
+
+        // 根据吃单方向确定买卖双方（用户 ID 格式："usr_xxx"）
+        let is_taker_buyer = matches!(event.taker_action.as_deref(), Some("bid" | "buy"));
+        let (buyer_id, seller_id) = if is_taker_buyer {
+            (format!("{}{}", USER_ID_PREFIX, taker_uid), format!("{}{}", USER_ID_PREFIX, maker_uid))
+        } else {
+            (format!("{}{}", USER_ID_PREFIX, maker_uid), format!("{}{}", USER_ID_PREFIX, taker_uid))
+        };
+
+        let trade_id = format!("t_{}_{}", event.matched_order_id, event.taker_order_id.unwrap_or(0));
+
+        info!(
+            "Settling trade: trade_id={}, market={}, outcome={}, buyer={}, seller={}, price={}, size={}",
+            trade_id, market_id, outcome_id, buyer_id, seller_id, price_dec, size_dec
+        );
+
+        let request = tonic::Request::new(api::portfolio::SettleTradeRequest {
+            trade_id,
+            market_id: market_id as u64,
+            outcome_id: outcome_id as u64,
+            buyer_id,
+            seller_id,
+            price: price_dec.to_string(),
+            size: size_dec.to_string(),
+            taker_fee_rate: "0.001".to_string(),
+            maker_fee_rate: "0.001".to_string(),
+        });
+
+        client.settle_trade(request).await
+            .map(|_resp| {
+                info!("Portfolio.SettleTrade succeeded for trade");
+            })
+            .map_err(|e| format!("SettleTrade gRPC failed: {}", e))
     }
 
     /// 发布订单事件到 order_events 主题

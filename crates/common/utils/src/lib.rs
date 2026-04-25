@@ -6,6 +6,7 @@ pub mod token;
 pub mod cipher;
 pub mod wallet;
 pub mod id;
+pub mod constants;
 
 pub use token::*;
 pub use cipher::*;

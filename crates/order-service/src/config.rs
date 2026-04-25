@@ -11,6 +11,7 @@ pub struct Config {
     pub database: DatabaseConfig,
     pub matching_engine: MatchingEngineConfig,
     pub queue: QueueConfig,
+    pub portfolio_service: PortfolioServiceConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -30,6 +31,11 @@ pub struct DatabaseConfig {
 pub struct MatchingEngineConfig {
     pub host: String,
     pub port: u16,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PortfolioServiceConfig {
+    pub addr: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -66,6 +72,9 @@ impl Config {
                     backend: "redis".to_string(),
                     brokers: vec!["localhost:9092".to_string()],
                     group_id: "order-service".to_string(),
+                },
+                portfolio_service: PortfolioServiceConfig {
+                    addr: "http://127.0.0.1:50003".to_string(),
                 },
             }
         })
