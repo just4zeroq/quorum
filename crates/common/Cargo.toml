@@ -17,6 +17,7 @@ tracing = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 async-trait = { workspace = true }
 serde_yaml = { workspace = true }
+registry.workspace = true
 
 # Crypto
 jsonwebtoken = { workspace = true }
