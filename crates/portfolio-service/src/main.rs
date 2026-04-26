@@ -1,10 +1,14 @@
 //! Portfolio Service Entry Point
 
 use db::{DBManager, Config, MigrationRunner};
+use registry::ServiceRegistry;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
+
+    // Load config
+    let config = portfolio_service::config::Config::default();
 
     // Load database config
     let db_config = Config::load_default().merge();
@@ -30,9 +34,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let portfolio_svc = portfolio_service::service::PortfolioServiceImpl::new(repo);
 
     // Start gRPC server
-    let port = std::env::var("PORT").unwrap_or_else(|_| "50003".to_string());
-    let addr: std::net::SocketAddr = format!("[::1]:{}", port).parse()?;
+    let addr: std::net::SocketAddr = format!("{}:{}", config.service.host, config.service.port).parse()?;
     tracing::info!("Portfolio service listening on {}", addr);
+
+    // Register to etcd
+    let registry = ServiceRegistry::new(
+        "portfolio-service",
+        &format!("http://{}", addr),
+        &config.etcd_endpoints,
+    )
+    .await
+    .map_err(|e| format!("Failed to create service registry: {}", e))?;
+    registry
+        .register(30)
+        .await
+        .map_err(|e| format!("Failed to register service: {}", e))?;
+    let _heartbeat_handle = registry.clone().start_heartbeat(30, 10);
 
     tonic::transport::Server::builder()
         .add_service(api::portfolio::portfolio_service_server::PortfolioServiceServer::new(portfolio_svc))
