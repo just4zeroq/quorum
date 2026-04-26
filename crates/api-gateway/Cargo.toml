@@ -8,6 +8,7 @@ authors.workspace = true
 [dependencies]
 common = { path = "../common" }
 api = { path = "../api" }
+registry.workspace = true
 tokio = { workspace = true }
 salvo = { workspace = true }
 serde = { workspace = true }
