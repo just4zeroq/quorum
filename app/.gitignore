@@ -1,8 +1,8 @@
 node_modules/
 dist/
 .next/
-.next/
 out/
+next-env.d.ts
 # Vite
 vite.config.ts.timestamp-*
 vite-env.d.ts
