@@ -2,6 +2,7 @@
 
 use std::net::SocketAddr;
 use tonic::transport::Server;
+use registry::ServiceRegistry;
 
 use crate::config::Config;
 use crate::services::OrderServiceImpl;
@@ -80,6 +81,18 @@ impl OrderServer {
             .parse::<SocketAddr>()?;
 
         tracing::info!("Starting Order Service on {}", addr);
+
+        // 注册到 etcd
+        let registry = ServiceRegistry::new(
+            "order-service",
+            &format!("http://{}", addr),
+            &self.config.etcd_endpoints,
+        ).await?;
+
+        registry.register(30).await?;
+        let heartbeat_handle = registry.clone().start_heartbeat(30, 10);
+
+        tracing::info!("Order service registered to etcd");
 
         // 启动 Queue 消费者
         if let Some(mut consumer) = self.queue_consumer.take() {

@@ -12,6 +12,7 @@ pub struct Config {
     pub matching_engine: MatchingEngineConfig,
     pub queue: QueueConfig,
     pub portfolio_service: PortfolioServiceConfig,
+    pub etcd_endpoints: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -76,6 +77,7 @@ impl Config {
                 portfolio_service: PortfolioServiceConfig {
                     addr: "http://127.0.0.1:50003".to_string(),
                 },
+                etcd_endpoints: vec!["http://127.0.0.1:2379".to_string()],
             }
         })
     }

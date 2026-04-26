@@ -37,3 +37,6 @@ queue = { path = "../common/queue" }
 config = { workspace = true }
 serde_yaml = { workspace = true }
 
+# Service Registry
+registry.workspace = true
+
