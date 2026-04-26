@@ -6,6 +6,7 @@
 //! ## gRPC 接口
 //! - CheckRisk: Pre-trade 风控检查
 
+pub mod config;
 pub mod errors;
 pub mod rules;
 pub mod service;
