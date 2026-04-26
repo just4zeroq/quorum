@@ -6,6 +6,7 @@ members = [
     "crates/common/queue",
     "crates/common/utils",
     "crates/common/rate_limiter",
+    "crates/common/registry",
     "crates/domain",
     "crates/api",
     "crates/api-gateway",
