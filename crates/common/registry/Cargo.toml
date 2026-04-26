@@ -15,3 +15,6 @@ uuid.workspace = true
 
 # etcd
 etcd-client = "0.14"
+
+# futures
+futures-util = "0.3"
