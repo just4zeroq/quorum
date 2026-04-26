@@ -8,7 +8,6 @@ authors.workspace = true
 [dependencies]
 common = { path = "../common" }
 utils = { path = "../common/utils" }
-domain = { path = "../domain" }
 api = { path = "../api" }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -38,5 +37,3 @@ queue = { path = "../common/queue" }
 config = { workspace = true }
 serde_yaml = { workspace = true }
 
-[build-dependencies]
-tonic-build = { workspace = true }

@@ -2,8 +2,8 @@
 //!
 //! 提供对后端微服务的 gRPC 调用能力
 
-use tonic::transport::Channel;
 use std::time::Duration;
+use tonic::transport::Channel;
 
 /// gRPC 客户端配置
 #[derive(Clone)]
@@ -44,63 +44,55 @@ pub async fn connect(addr: String) -> Result<Channel, tonic::transport::Error> {
 /// 创建 User Service 客户端
 pub async fn create_user_client(
     addr: String,
-) -> Result<api::user::user_service_client::UserServiceClient<Channel>, tonic::transport::Error> {
-    let channel = connect(addr).await?;
-    Ok(api::user::user_service_client::UserServiceClient::new(channel))
+) -> Result<api::UserServiceClient<tonic::transport::Channel>, tonic::transport::Error> {
+    api::user::create_user_client(&addr).await
 }
 
 /// 创建 Order Service 客户端
 pub async fn create_order_client(
     addr: String,
-) -> Result<api::order::order_service_client::OrderServiceClient<Channel>, tonic::transport::Error> {
-    let channel = connect(addr).await?;
-    Ok(api::order::order_service_client::OrderServiceClient::new(channel))
+) -> Result<api::OrderServiceClient<tonic::transport::Channel>, tonic::transport::Error> {
+    api::order::create_order_client(&addr).await
 }
 
 /// 创建 Auth Service 客户端
 pub async fn create_auth_client(
     addr: String,
-) -> Result<api::auth::auth_service_client::AuthServiceClient<Channel>, tonic::transport::Error> {
-    let channel = connect(addr).await?;
-    Ok(api::auth::auth_service_client::AuthServiceClient::new(channel))
+) -> Result<api::AuthServiceClient<tonic::transport::Channel>, tonic::transport::Error> {
+    api::auth::create_auth_client(&addr).await
 }
 
 /// 创建 Market Data Service 客户端
 pub async fn create_market_data_client(
     addr: String,
-) -> Result<api::market_data::market_data_service_client::MarketDataServiceClient<Channel>, tonic::transport::Error> {
-    let channel = connect(addr).await?;
-    Ok(api::market_data::market_data_service_client::MarketDataServiceClient::new(channel))
+) -> Result<api::MarketDataServiceClient<tonic::transport::Channel>, tonic::transport::Error> {
+    api::market_data::create_market_data_client(&addr).await
 }
 
 /// 创建 Prediction Market Service 客户端
 pub async fn create_prediction_market_client(
     addr: String,
-) -> Result<api::prediction_market::prediction_market_service_client::PredictionMarketServiceClient<Channel>, tonic::transport::Error> {
-    let channel = connect(addr).await?;
-    Ok(api::prediction_market::prediction_market_service_client::PredictionMarketServiceClient::new(channel))
+) -> Result<api::PredictionMarketServiceClient<tonic::transport::Channel>, tonic::transport::Error> {
+    api::prediction_market::create_prediction_market_client(&addr).await
 }
 
 /// 创建 Portfolio Service 客户端
 pub async fn create_portfolio_client(
     addr: String,
-) -> Result<api::portfolio::portfolio_service_client::PortfolioServiceClient<Channel>, tonic::transport::Error> {
-    let channel = connect(addr).await?;
-    Ok(api::portfolio::portfolio_service_client::PortfolioServiceClient::new(channel))
+) -> Result<api::PortfolioServiceClient<tonic::transport::Channel>, tonic::transport::Error> {
+    api::portfolio::create_portfolio_client(&addr).await
 }
 
 /// 创建 Risk Service 客户端
 pub async fn create_risk_client(
     addr: String,
-) -> Result<api::risk::risk_service_client::RiskServiceClient<Channel>, tonic::transport::Error> {
-    let channel = connect(addr).await?;
-    Ok(api::risk::risk_service_client::RiskServiceClient::new(channel))
+) -> Result<api::RiskServiceClient<tonic::transport::Channel>, tonic::transport::Error> {
+    api::risk::create_risk_client(&addr).await
 }
 
 /// 创建 Wallet Service 客户端
 pub async fn create_wallet_client(
     addr: String,
-) -> Result<api::wallet::wallet_service_client::WalletServiceClient<Channel>, tonic::transport::Error> {
-    let channel = connect(addr).await?;
-    Ok(api::wallet::wallet_service_client::WalletServiceClient::new(channel))
+) -> Result<api::WalletServiceClient<tonic::transport::Channel>, tonic::transport::Error> {
+    api::wallet::create_wallet_client(&addr).await
 }

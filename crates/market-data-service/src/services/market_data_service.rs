@@ -7,9 +7,8 @@ use std::str::FromStr;
 
 use crate::models::{PredictionMarket, MarketOutcome, Kline, Trade, OrderBook, Market24hStats};
 use crate::repository::{MarketRepository, KlineRepository, TradeRepository};
-use crate::pb::{
-    market_data_service_server::MarketDataService,
-    GetMarketsRequest, GetMarketsResponse, MarketSummary, OutcomeSummary,
+use api::market_data::{
+    market_data_service_server::MarketDataService, GetMarketsRequest, GetMarketsResponse, MarketSummary, OutcomeSummary,
     GetMarketDetailRequest, GetMarketDetailResponse, MarketDetail, OutcomeDetail,
     GetOutcomePricesRequest, GetOutcomePricesResponse, OutcomePrice,
     GetOrderBookRequest, GetOrderBookResponse, OrderBookLevel,
@@ -322,7 +321,7 @@ impl MarketDataService for MarketDataServiceImpl {
         }))
     }
 
-    async fn get24h_stats(
+    async fn get_24h_stats(
         &self,
         request: Request<Get24hStatsRequest>,
     ) -> Result<Response<Get24hStatsResponse>, Status> {
@@ -337,7 +336,7 @@ impl MarketDataService for MarketDataServiceImpl {
             volume_24h: stats.volume_24h.to_string(),
             amount_24h: stats.amount_24h.to_string(),
             high_24h: stats.high_24h.to_string(),
-            low_5h: stats.low_24h.to_string(),
+            low_24h: stats.low_24h.to_string(),
             price_change: stats.price_change.to_string(),
             price_change_percent: stats.price_change_percent.to_string(),
             trade_count_24h: stats.trade_count_24h,

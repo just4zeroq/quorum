@@ -10,14 +10,13 @@ authors.workspace = true
 common = { path = "../common" }
 db = { path = "../common/db" }
 cache = { path = "../common/cache" }
-domain = { path = "../domain" }
+api = { path = "../api" }
 
 # Async runtime
 tokio = { workspace = true }
 
 # gRPC
 tonic = "0.12"
-tonic-reflection = "0.12"
 prost = "0.13"
 
 # Serialization
@@ -39,6 +38,5 @@ tracing-subscriber = { workspace = true }
 parking_lot = { workspace = true }
 rust_decimal = { workspace = true }
 async-trait = { workspace = true }
+utils = { path = "../common/utils" }
 
-[build-dependencies]
-tonic-build = "0.12"

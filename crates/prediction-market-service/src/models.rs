@@ -1,11 +1,12 @@
 //! 预测市场数据模型
-//!
-//! Re-exports from domain crate
 
-pub use domain::prediction_market::model::{
+pub mod prediction_market;
+pub mod trade;
+
+pub use prediction_market::model::{
     PredictionMarket, MarketOutcome, MarketStatus, Resolution
 };
-pub use domain::trade::model::TradeSide;
+pub use trade::model::TradeSide;
 
 // Service-specific models
 use rust_decimal::Decimal;

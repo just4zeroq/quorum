@@ -1,0 +1,40 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling typenum v1.20.0
+   Compiling cmov v0.5.3
+   Compiling const-oid v0.10.2
+   Compiling rand v0.10.1
+   Compiling rust_decimal v1.41.0
+   Compiling fallible-iterator v0.2.0
+   Compiling arrayvec v0.7.6
+   Compiling hyper-util v0.1.20
+   Compiling axum-core v0.4.5
+   Compiling tower v0.5.3
+   Compiling futures-executor v0.3.32
+   Compiling tower v0.4.13
+   Compiling portfolio-service v0.1.0 (D:\code\github\quorum\crates\portfolio-service)
+   Compiling ctutils v0.4.2
+   Compiling generic-array v0.14.7
+   Compiling hybrid-array v0.4.10
+   Compiling sqlx-core v0.7.4
+   Compiling crypto-common v0.2.1
+   Compiling block-buffer v0.12.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling inout v0.1.4
+   Compiling sec1 v0.7.3
+   Compiling crypto-bigint v0.5.5
+   Compiling hyper-timeout v0.5.2
+error: failed to run custom build command for `portfolio-service v0.1.0 (D:\code\github\quorum\crates\portfolio-service)`
+
+Caused by:
+  process didn't exit successfully: `D:\code\github\quorum\target\release\build\portfolio-service-e0bef1f4dfc5616f\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\portfolio-service\src/pb/portfolio_service.proto
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\portfolio-service\src/pb
+
+  --- stderr
+  Error: Custom { kind: NotFound, error: "Could not find `protoc`. If `protoc` is installed, try setting the `PROTOC` environment variable to the path of the `protoc` binary. Try installing `protobuf-compiler` or `protobuf` using your package manager. It is also available at https://github.com/protocolbuffers/protobuf/releases  For more information: https://docs.rs/prost-build/#sourcing-protoc" }
+warning: build failed, waiting for other jobs to finish...

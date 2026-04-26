@@ -10,7 +10,6 @@ authors.workspace = true
 common = { path = "../common" }
 db = { path = "../common/db" }
 cache = { path = "../common/cache" }
-domain = { path = "../domain" }
 api = { path = "../api" }
 
 # Async runtime
@@ -43,5 +42,7 @@ hex = "0.4"
 rust_decimal = { workspace = true }
 async-trait = { workspace = true }
 
-[build-dependencies]
-tonic-build = "0.12"
+# JWT & Crypto
+jsonwebtoken = { workspace = true }
+sha2 = { workspace = true }
+

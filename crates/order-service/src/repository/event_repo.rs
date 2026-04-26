@@ -87,7 +87,7 @@ impl OrderEventRepository {
             v.and_then(|s| Decimal::from_str(&s).ok())
         }
 
-        fn parse_status(v: Option<String>) -> Option<domain::order::model::OrderStatus> {
+        fn parse_status(v: Option<String>) -> Option<crate::models::order::model::OrderStatus> {
             v.and_then(|s| serde_json::from_str(&format!("\"{}\"", s)).ok())
         }
 

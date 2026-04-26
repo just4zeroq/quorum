@@ -1,0 +1,283 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling serde_core v1.0.228
+   Compiling zeroize v1.8.2
+   Compiling serde v1.0.228
+   Compiling libm v0.2.16
+   Compiling subtle v2.6.1
+   Compiling generic-array v0.14.7
+   Compiling num-traits v0.2.19
+   Compiling cc v1.2.60
+   Compiling windows-sys v0.61.2
+   Compiling const-oid v0.9.6
+   Compiling serde_json v1.0.149
+   Compiling stable_deref_trait v1.2.1
+   Compiling ahash v0.8.12
+   Compiling zerofrom v0.1.7
+   Compiling bytes v1.11.1
+   Compiling futures-io v0.3.32
+   Compiling typenum v1.20.0
+   Compiling getrandom v0.2.17
+   Compiling yoke v0.8.2
+   Compiling futures-util v0.3.32
+   Compiling crossbeam-utils v0.8.21
+   Compiling zerocopy v0.8.48
+   Compiling smallvec v1.15.1
+   Compiling tracing v0.1.44
+   Compiling windows_x86_64_msvc v0.48.5
+   Compiling rustls v0.21.12
+   Compiling zerovec v0.11.6
+   Compiling base64ct v1.8.3
+   Compiling scopeguard v1.2.0
+   Compiling writeable v0.6.3
+   Compiling litemap v0.8.2
+   Compiling zerotrie v0.2.4
+   Compiling utf8_iter v1.0.4
+   Compiling paste v1.0.15
+   Compiling lock_api v0.4.14
+   Compiling untrusted v0.9.0
+   Compiling futures-core v0.3.32
+   Compiling icu_properties_data v2.2.0
+   Compiling pem-rfc7468 v0.7.0
+   Compiling icu_normalizer_data v2.2.0
+   Compiling pin-project-lite v0.2.17
+   Compiling getrandom v0.3.4
+   Compiling num-bigint-dig v0.8.6
+   Compiling der v0.7.10
+   Compiling futures-sink v0.3.32
+   Compiling tinystr v0.8.3
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling potential_utf v0.1.5
+   Compiling icu_normalizer v2.2.0
+   Compiling ring v0.17.14
+   Compiling digest v0.10.7
+   Compiling icu_locale_core v2.2.0
+   Compiling icu_collections v2.2.0
+   Compiling rand_core v0.6.4
+   Compiling parking_lot_core v0.9.12
+   Compiling hmac v0.12.1
+   Compiling vcpkg v0.2.15
+   Compiling idna_adapter v1.2.1
+   Compiling sha2 v0.10.9
+   Compiling spin v0.9.8
+   Compiling zmij v1.0.21
+   Compiling icu_provider v2.2.0
+   Compiling spki v0.7.3
+   Compiling mio v1.2.0
+   Compiling socket2 v0.6.3
+   Compiling num-integer v0.1.46
+   Compiling tempfile v3.27.0
+   Compiling pkcs8 v0.10.2
+   Compiling libsqlite3-sys v0.27.0
+   Compiling icu_properties v2.2.0
+   Compiling tokio v1.52.1
+   Compiling slab v0.4.12
+   Compiling minimal-lexical v0.2.1
+   Compiling cpufeatures v0.2.17
+   Compiling percent-encoding v2.3.2
+   Compiling futures-task v0.3.32
+   Compiling allocator-api2 v0.2.21
+   Compiling form_urlencoded v1.2.2
+   Compiling nom v7.1.3
+   Compiling parking_lot v0.12.5
+   Compiling idna v1.1.0
+   Compiling either v1.15.0
+   Compiling signature v2.2.0
+   Compiling inout v0.1.4
+   Compiling thiserror v1.0.69
+   Compiling tracing-core v0.1.36
+   Compiling unicode_categories v0.1.1
+   Compiling itoa v1.0.18
+   Compiling tinyvec_macros v0.1.1
+   Compiling crc-catalog v2.4.0
+   Compiling base64 v0.21.7
+   Compiling ppv-lite86 v0.2.21
+   Compiling itertools v0.14.0
+   Compiling hex v0.4.3
+   Compiling crc v3.4.0
+   Compiling hashbrown v0.14.5
+   Compiling rand_chacha v0.3.1
+   Compiling rustls-pemfile v1.0.4
+   Compiling url v2.5.8
+   Compiling tinyvec v1.11.0
+   Compiling crossbeam-queue v0.3.12
+   Compiling rand v0.8.6
+   Compiling cipher v0.4.4
+   Compiling futures-intrusive v0.5.0
+   Compiling hashlink v0.8.4
+   Compiling sqlformat v0.2.6
+   Compiling atoi v2.0.0
+   Compiling futures-channel v0.3.32
+   Compiling byteorder v1.5.0
+   Compiling event-listener v2.5.3
+   Compiling webpki-roots v0.25.4
+   Compiling num-iter v0.1.45
+   Compiling windows-targets v0.48.5
+   Compiling unicode-normalization v0.1.25
+   Compiling lazy_static v1.5.0
+   Compiling prost-derive v0.13.5
+   Compiling sct v0.7.1
+   Compiling rustls-webpki v0.101.7
+   Compiling ff v0.13.1
+   Compiling thiserror v2.0.18
+   Compiling base16ct v0.2.0
+   Compiling unicode-bidi v0.3.18
+   Compiling time-core v0.1.8
+   Compiling num-conv v0.2.1
+   Compiling unicode-properties v0.1.4
+   Compiling time-macros v0.2.27
+   Compiling stringprep v0.1.5
+   Compiling sec1 v0.7.3
+   Compiling group v0.13.0
+   Compiling pkcs1 v0.7.5
+   Compiling hkdf v0.12.4
+   Compiling windows-sys v0.48.0
+   Compiling bitflags v2.11.1
+   Compiling futures-executor v0.3.32
+   Compiling tokio-stream v0.1.18
+   Compiling home v0.5.12
+   Compiling md-5 v0.10.6
+   Compiling universal-hash v0.5.1
+   Compiling crypto-bigint v0.5.5
+   Compiling opaque-debug v0.3.1
+   Compiling prost v0.13.5
+   Compiling syn v1.0.109
+   Compiling whoami v1.6.1
+   Compiling dotenvy v0.15.7
+   Compiling rsa v0.9.10
+   Compiling time v0.3.47
+   Compiling etcetera v0.8.0
+   Compiling polyval v0.6.2
+   Compiling prost-types v0.13.5
+   Compiling sha1 v0.10.6
+   Compiling num-bigint v0.4.6
+   Compiling sqlx-core v0.7.4
+   Compiling flume v0.11.1
+   Compiling tokio-util v0.7.18
+   Compiling rfc6979 v0.4.0
+   Compiling urlencoding v2.1.3
+   Compiling unicode-segmentation v1.13.2
+   Compiling elliptic-curve v0.13.8
+   Compiling ghash v0.5.1
+   Compiling pem v3.0.6
+   Compiling h2 v0.4.13
+   Compiling heck v0.4.1
+   Compiling aes v0.8.4
+   Compiling ctr v0.9.2
+   Compiling prost-build v0.13.5
+   Compiling ecdsa v0.16.9
+   Compiling chrono v0.4.44
+   Compiling simple_asn1 v0.6.4
+   Compiling tonic-build v0.12.3
+   Compiling aead v0.5.2
+   Compiling keccak v0.1.6
+   Compiling sqlx-sqlite v0.7.4
+   Compiling sqlx-postgres v0.7.4
+   Compiling sqlx-mysql v0.7.4
+   Compiling sha3 v0.10.9
+   Compiling axum-core v0.4.5
+   Compiling aes-gcm v0.10.3
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling jsonwebtoken v9.3.1
+   Compiling k256 v0.13.4
+   Compiling tower v0.5.3
+   Compiling rust_decimal v1.41.0
+   Compiling tokio-retry v0.3.1
+   Compiling tower v0.4.13
+   Compiling hyper v1.9.0
+   Compiling axum v0.7.9
+   Compiling api v0.1.0 (D:\code\github\quorum\crates\api)
+   Compiling combine v4.6.7
+   Compiling sqlx-macros-core v0.7.4
+   Compiling futures v0.3.32
+   Compiling utils v0.1.0 (D:\code\github\quorum\crates\common\utils)
+   Compiling user-service v0.1.0 (D:\code\github\quorum\crates\user-service)
+   Compiling uuid v1.23.1
+warning: unused import: `sha3::Keccak256`
+  --> crates\common\utils\src\wallet.rs:11:5
+   |
+11 | use sha3::Keccak256;
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `k256::elliptic_curve::sec1::ToEncodedPoint`
+  --> crates\common\utils\src\wallet.rs:10:5
+   |
+10 | use k256::elliptic_curve::sec1::ToEncodedPoint;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling sharded-slab v0.1.7
+   Compiling blowfish v0.9.1
+warning: field `prefix` is never read
+  --> crates\common\utils\src\id\generator.rs:13:5
+   |
+12 | pub struct IdGenerator<P: IdPrefix> {
+   |            ----------- field in this struct
+13 |     prefix: P,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling nu-ansi-term v0.50.3
+   Compiling common v0.1.0 (D:\code\github\quorum\crates\common)
+   Compiling bcrypt v0.15.1
+   Compiling domain v0.1.0 (D:\code\github\quorum\crates\domain)
+   Compiling hyper-util v0.1.20
+warning: unused import: `shared::*`
+ --> crates\domain\src\order\mod.rs:9:9
+  |
+9 | pub use shared::*;
+  |         ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `super::model::Trade`
+ --> crates\domain\src\trade\event\mod.rs:4:5
+  |
+4 | use super::model::Trade;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `shared::*`
+ --> crates\domain\src\trade\mod.rs:9:9
+  |
+9 | pub use shared::*;
+  |         ^^^^^^^^^
+
+warning: unused import: `shared::*`
+ --> crates\domain\src\user\mod.rs:9:9
+  |
+9 | pub use shared::*;
+  |         ^^^^^^^^^
+
+warning: unused import: `shared::*`
+ --> crates\domain\src\market_data\mod.rs:9:9
+  |
+9 | pub use shared::*;
+  |         ^^^^^^^^^
+
+warning: unused import: `shared::*`
+ --> crates\domain\src\prediction_market\mod.rs:9:9
+  |
+9 | pub use shared::*;
+  |         ^^^^^^^^^
+
+   Compiling tracing-subscriber v0.3.23
+   Compiling sqlx-macros v0.7.4
+error: failed to run custom build command for `user-service v0.1.0 (D:\code\github\quorum\crates\user-service)`
+
+Caused by:
+  process didn't exit successfully: `D:\code\github\quorum\target\release\build\user-service-5d43089069693c3f\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\user-service\src/pb/user.proto
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\user-service\src/pb
+
+  --- stderr
+  Error: Custom { kind: NotFound, error: "Could not find `protoc`. If `protoc` is installed, try setting the `PROTOC` environment variable to the path of the `protoc` binary. Try installing `protobuf-compiler` or `protobuf` using your package manager. It is also available at https://github.com/protocolbuffers/protobuf/releases  For more information: https://docs.rs/prost-build/#sourcing-protoc" }
+warning: build failed, waiting for other jobs to finish...
+warning: `domain` (lib) generated 6 warnings (run `cargo fix --lib -p domain` to apply 6 suggestions)
+warning: `utils` (lib) generated 3 warnings (run `cargo fix --lib -p utils` to apply 1 suggestion)

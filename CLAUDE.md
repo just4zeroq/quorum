@@ -25,7 +25,6 @@
 | Market Data Service | ✅ | ✅ | ✅ | ✅ |
 | Risk Service | ✅ | ✅ | - | ✅ |
 | Wallet Service | ✅ | ✅ | - | ✅ |
-| Auth Service | ✅ | ✅ | - | - |
 | API Gateway | - | ✅ | - | ✅ |
 | ws-market-data | - | ✅ | - | ✅ |
 | ws-order | - | ✅ | - | ✅ |
@@ -80,12 +79,11 @@ rust-cex/
 │   ├── domain/                   # 领域模型共享包
 │   ├── api/                      # 统一 gRPC 接口定义
 │   ├── api-gateway/              # API 网关 (HTTP/WS 入口)
-│   ├── user-service/             # 用户服务
+│   ├── user-service/             # 用户服务 (含鉴权)
 │   ├── wallet-service/           # 钱包服务
 │   ├── portfolio-service/        # 账户+持仓+清算+账本
 │   ├── order-service/            # 订单服务
 │   ├── risk-service/             # 风控服务
-│   ├── auth-service/             # 鉴权服务 (JWT/API Key)
 │   ├── market-data-service/      # 行情服务
 │   ├── matching-engine/          # 撮合引擎 (内存 CLOB + WAL)
 │   ├── prediction-market-service/ # 预测市场服务
@@ -115,7 +113,7 @@ cargo run -p user-service
 
 | 服务 | 端口 | 数据库 | 说明 |
 |------|------|--------|------|
-| User Service | 50001 | 独立 | 用户注册/登录/KYC/2FA |
+| User Service | 50001 | 独立 | 用户注册/登录/KYC/2FA + JWT/API Key 鉴权 |
 | Wallet Service | 50002 | 独立 | 充值/提现/地址管理 |
 | Portfolio Service | 50003 | 独立 | 账户+持仓+清算+账本 |
 | Order Service | 50004 | 独立 | 订单管理 |
@@ -123,19 +121,12 @@ cargo run -p user-service
 | Market Data Service | 50006 | 共享 PM DB | 行情/K线/订单簿/24h统计 |
 | Matching Engine | 50007 | **无** | CLOB 撮合 (内存 + WAL) |
 | Prediction Market Service | 50008 | 主数据库 | 市场管理/结算/派彩 |
-| Auth Service | 50009 | 独立 | JWT/API Key 鉴权 |
 | ws-market-data | 50016 | - | WebSocket 行情推送 |
 | API Gateway | 8080 | - | HTTP/WS 统一入口 |
 
 ### Portfolio Service 模块
 
 合并自: Account Service + Position Service + Clearing Service + Ledger Service
-
-### Auth Service 模块
-
-- JWT Token 管理 (Access/Refresh)
-- API Key 管理
-- Session 管理
 
 ### 已移除的服务 (现货不需要)
 

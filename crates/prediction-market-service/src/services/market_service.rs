@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use crate::models::{PredictionMarket, MarketOutcome, MarketStatus};
 use crate::repository::{MarketRepository, OutcomeRepository, PositionRepository};
-use crate::pb::{
+use api::prediction_market::{
     prediction_market_service_server::PredictionMarketService,
     CreateMarketRequest, CreateMarketResponse, UpdateMarketRequest, UpdateMarketResponse,
     CloseMarketRequest, CloseMarketResponse, GetMarketRequest, GetMarketResponse,
@@ -21,14 +21,14 @@ use crate::pb::{
 
 pub struct MarketService {
     pool: sqlx::PgPool,
-    portfolio_client: api::portfolio::portfolio_service_client::PortfolioServiceClient<tonic::transport::Channel>,
+    portfolio_client: api::PortfolioServiceClient<tonic::transport::Channel>,
     event_producer: Option<queue::ProducerManager>,
 }
 
 impl MarketService {
     pub fn new(
         pool: sqlx::PgPool,
-        portfolio_client: api::portfolio::portfolio_service_client::PortfolioServiceClient<tonic::transport::Channel>,
+        portfolio_client: api::PortfolioServiceClient<tonic::transport::Channel>,
     ) -> Self {
         Self { pool, portfolio_client, event_producer: None }
     }

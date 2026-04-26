@@ -37,5 +37,3 @@ rust_decimal = { workspace = true, features = ["serde", "serde-with-str", "db-po
 # Queue
 common = { path = "../common" }
 
-[build-dependencies]
-tonic-build = { workspace = true }

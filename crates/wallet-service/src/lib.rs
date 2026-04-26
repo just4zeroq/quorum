@@ -2,7 +2,6 @@
 //!
 //! 提供充值、提现、地址管理、白名单、支付密码等功能
 
-pub mod pb;
 pub mod models;
 pub mod errors;
 pub mod repository;

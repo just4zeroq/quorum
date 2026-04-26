@@ -181,38 +181,38 @@ impl UserService for UserServiceImpl {
         Err(Status::unimplemented("Change password not implemented"))
     }
 
-    async fn enable2_fa(
+    async fn enable_2fa(
         &self,
-        _request: Request<Enable2FaRequest>,
-    ) -> std::result::Result<Response<Enable2FaResponse>, Status> {
+        _request: Request<Enable2FARequest>,
+    ) -> std::result::Result<Response<Enable2FAResponse>, Status> {
         Err(Status::unimplemented("Enable 2FA not implemented"))
     }
 
-    async fn disable2_fa(
+    async fn disable_2fa(
         &self,
-        _request: Request<Disable2FaRequest>,
-    ) -> std::result::Result<Response<Disable2FaResponse>, Status> {
+        _request: Request<Disable2FARequest>,
+    ) -> std::result::Result<Response<Disable2FAResponse>, Status> {
         Err(Status::unimplemented("Disable 2FA not implemented"))
     }
 
-    async fn verify2_fa(
+    async fn verify_2fa(
         &self,
-        _request: Request<Verify2FaRequest>,
-    ) -> std::result::Result<Response<Verify2FaResponse>, Status> {
+        _request: Request<Verify2FARequest>,
+    ) -> std::result::Result<Response<Verify2FAResponse>, Status> {
         Err(Status::unimplemented("Verify 2FA not implemented"))
     }
 
     async fn submit_kyc(
         &self,
-        _request: Request<SubmitKycRequest>,
-    ) -> std::result::Result<Response<SubmitKycResponse>, Status> {
+        _request: Request<SubmitKYCRequest>,
+    ) -> std::result::Result<Response<SubmitKYCResponse>, Status> {
         Err(Status::unimplemented("Submit KYC not implemented"))
     }
 
     async fn get_kyc_status(
         &self,
-        _request: Request<GetKycStatusRequest>,
-    ) -> std::result::Result<Response<GetKycStatusResponse>, Status> {
+        _request: Request<GetKYCStatusRequest>,
+    ) -> std::result::Result<Response<GetKYCStatusResponse>, Status> {
         Err(Status::unimplemented("Get KYC status not implemented"))
     }
 

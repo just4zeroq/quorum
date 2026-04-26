@@ -983,7 +983,7 @@ pub struct TickerResponse {
     pub volume_24h: String,
     pub amount_24h: String,
     pub high_24h: String,
-    pub low_5h: String,
+    pub low_24h: String,
     pub price_change: String,
     pub price_change_percent: String,
     pub trade_count_24h: i64,
@@ -1002,7 +1002,7 @@ pub async fn get_ticker(req: &mut Request, _depot: &mut Depot, res: &mut Respons
                 market_id,
             };
 
-            match client.get24h_stats(grpc_request).await {
+            match client.get_24h_stats(grpc_request).await {
                 Ok(resp) => {
                     let data = resp.into_inner();
                     res.render(Json(TickerResponse {
@@ -1010,7 +1010,7 @@ pub async fn get_ticker(req: &mut Request, _depot: &mut Depot, res: &mut Respons
                         volume_24h: data.volume_24h,
                         amount_24h: data.amount_24h,
                         high_24h: data.high_24h,
-                        low_5h: data.low_5h,
+                        low_24h: data.low_24h,
                         price_change: data.price_change,
                         price_change_percent: data.price_change_percent,
                         trade_count_24h: data.trade_count_24h,

@@ -1,10 +1,12 @@
 //! Market Data Service Models
-//!
-//! Re-exports from domain crate
 
-pub use domain::market_data::model::{Market, Outcome, OrderBook, Kline, KlineInterval, OrderBookLevel};
-pub use domain::prediction_market::model::{PredictionMarket, MarketOutcome, MarketStatus};
-pub use domain::trade::model::{Trade, TradeSide};
+pub mod market_data;
+pub mod prediction_market;
+pub mod trade;
+
+pub use market_data::model::{Market, Outcome, OrderBook, Kline, KlineInterval, OrderBookLevel};
+pub use prediction_market::model::{PredictionMarket, MarketOutcome, MarketStatus};
+pub use trade::model::{Trade, TradeSide};
 
 // Service-specific models
 use rust_decimal::Decimal;

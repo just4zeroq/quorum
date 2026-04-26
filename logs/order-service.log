@@ -1,0 +1,35 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling ring v0.17.14
+   Compiling rustls v0.21.12
+   Compiling const-random-macro v0.1.16
+   Compiling libsqlite3-sys v0.27.0
+   Compiling serde_spanned v0.6.9
+   Compiling toml_datetime v0.6.11
+   Compiling json5 v0.4.1
+   Compiling yaml-rust2 v0.8.1
+   Compiling order-service v0.1.0 (D:\code\github\quorum\crates\order-service)
+   Compiling ron v0.8.1
+   Compiling queue v0.1.0 (D:\code\github\quorum\crates\common\queue)
+   Compiling toml_edit v0.22.27
+   Compiling const-random v0.1.18
+   Compiling dlv-list v0.5.2
+   Compiling ordered-multimap v0.7.3
+   Compiling rust-ini v0.20.0
+   Compiling rustls-webpki v0.101.7
+   Compiling sct v0.7.1
+   Compiling jsonwebtoken v9.3.1
+error: failed to run custom build command for `order-service v0.1.0 (D:\code\github\quorum\crates\order-service)`
+
+Caused by:
+  process didn't exit successfully: `D:\code\github\quorum\target\release\build\order-service-6f035c9223ca87cc\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\order-service\src/pb/order_service.proto
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\order-service\src/pb
+
+  --- stderr
+  Error: Custom { kind: NotFound, error: "Could not find `protoc`. If `protoc` is installed, try setting the `PROTOC` environment variable to the path of the `protoc` binary. Try installing `protobuf-compiler` or `protobuf` using your package manager. It is also available at https://github.com/protocolbuffers/protobuf/releases  For more information: https://docs.rs/prost-build/#sourcing-protoc" }
+warning: build failed, waiting for other jobs to finish...

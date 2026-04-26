@@ -1,0 +1,158 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling subtle v2.6.1
+   Compiling windows-sys v0.61.2
+   Compiling serde_core v1.0.228
+   Compiling serde v1.0.228
+   Compiling memchr v2.8.0
+   Compiling regex-syntax v0.8.10
+   Compiling futures-util v0.3.32
+   Compiling form_urlencoded v1.2.2
+   Compiling aho-corasick v1.1.4
+   Compiling winnow v1.0.1
+   Compiling toml_datetime v1.1.1+spec-1.1.0
+   Compiling unicase v2.9.0
+   Compiling multer v3.1.0
+   Compiling cookie v0.18.1
+   Compiling getrandom v0.3.4
+   Compiling enumflags2_derive v0.7.12
+   Compiling salvo-serde-util v0.69.0
+   Compiling headers-core v0.3.0
+   Compiling rustls-pki-types v1.14.0
+   Compiling der v0.7.10
+   Compiling digest v0.10.7
+   Compiling universal-hash v0.5.1
+   Compiling mime-infer v3.0.0
+   Compiling fastrand v2.4.1
+   Compiling polyval v0.6.2
+   Compiling xml-rs v0.8.28
+   Compiling hmac v0.12.1
+   Compiling ghash v0.5.1
+   Compiling sha2 v0.10.9
+   Compiling sha1 v0.10.6
+   Compiling spin v0.9.8
+   Compiling enumflags2 v0.7.12
+   Compiling aes-gcm v0.10.3
+   Compiling num-integer v0.1.46
+   Compiling digest v0.9.0
+   Compiling headers v0.4.1
+   Compiling rustls v0.23.38
+   Compiling rand_core v0.9.5
+   Compiling rustls-webpki v0.103.12
+   Compiling ff v0.13.1
+   Compiling toml_parser v1.1.2+spec-1.1.0
+   Compiling spki v0.7.3
+   Compiling num-bigint v0.4.6
+   Compiling blake3 v0.3.8
+   Compiling http v0.2.12
+   Compiling native-tls v0.2.18
+   Compiling sec1 v0.7.3
+   Compiling toml_edit v0.25.11+spec-1.1.0
+   Compiling regex-automata v0.4.14
+   Compiling proc-macro-crate v3.5.0
+   Compiling pkcs8 v0.10.2
+   Compiling group v0.13.0
+   Compiling rand_chacha v0.9.0
+   Compiling crypto-bigint v0.5.5
+   Compiling simple_asn1 v0.6.4
+   Compiling crypto-mac v0.11.0
+   Compiling serde_json v1.0.149
+   Compiling crypto-mac v0.8.0
+   Compiling block-buffer v0.9.0
+   Compiling constant_time_eq v0.1.5
+   Compiling cfg-if v0.1.10
+   Compiling arrayvec v0.5.2
+   Compiling arrayref v0.3.9
+   Compiling async-lock v2.8.0
+   Compiling sha2 v0.9.9
+   Compiling hmac v0.11.0
+   Compiling axum-core v0.4.5
+   Compiling tower v0.5.3
+   Compiling rand v0.9.4
+   Compiling url v2.5.8
+   Compiling http-body v0.4.6
+   Compiling regex v1.12.3
+   Compiling serde-xml-rs v0.6.0
+   Compiling multimap v0.10.1
+   Compiling chrono v0.4.44
+   Compiling bincode v1.3.3
+   Compiling elliptic-curve v0.13.8
+   Compiling prost-build v0.13.5
+   Compiling tungstenite v0.23.0
+   Compiling rfc6979 v0.4.0
+   Compiling jsonwebtoken v9.3.1
+   Compiling signature v2.2.0
+   Compiling xxhash-rust v0.8.15
+   Compiling str-buf v3.0.3
+   Compiling base64 v0.13.1
+   Compiling ulid v1.2.1
+   Compiling ecdsa v0.16.9
+   Compiling windows-sys v0.48.0
+   Compiling etag v4.0.0
+   Compiling rust_decimal v1.41.0
+   Compiling tonic-build v0.12.3
+   Compiling sha3 v0.10.9
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling tungstenite v0.21.0
+   Compiling serde_urlencoded v0.7.1
+   Compiling uuid v1.23.1
+   Compiling async-session v3.0.0
+   Compiling k256 v0.13.4
+   Compiling sync_wrapper v0.1.2
+   Compiling ipnet v2.12.0
+   Compiling salvo_macros v0.69.0
+   Compiling mio v1.2.0
+   Compiling socket2 v0.6.3
+   Compiling schannel v0.1.29
+   Compiling tempfile v3.27.0
+   Compiling axum v0.7.9
+   Compiling api v0.1.0 (D:\code\github\quorum\crates\api)
+   Compiling tokio v1.52.1
+   Compiling rustls-native-certs v0.8.3
+   Compiling nu-ansi-term v0.50.3
+   Compiling matchers v0.2.0
+   Compiling tracing-subscriber v0.3.23
+   Compiling winreg v0.50.0
+   Compiling tokio-util v0.7.18
+   Compiling tokio-rustls v0.26.4
+   Compiling tokio-stream v0.1.18
+   Compiling tokio-native-tls v0.3.1
+   Compiling tokio-tungstenite v0.23.1
+   Compiling tokio-tungstenite v0.21.0
+   Compiling common v0.1.0 (D:\code\github\quorum\crates\common)
+   Compiling h2 v0.4.13
+   Compiling h2 v0.3.27
+   Compiling tower v0.4.13
+   Compiling hyper v0.14.32
+   Compiling hyper v1.9.0
+   Compiling hyper-util v0.1.20
+   Compiling hyper-tls v0.5.0
+   Compiling reqwest v0.11.27
+   Compiling salvo_core v0.69.0
+   Compiling hyper-rustls v0.27.9
+   Compiling hyper-timeout v0.5.2
+   Compiling tonic v0.12.3
+   Compiling salvo-jwt-auth v0.69.0
+   Compiling salvo-cors v0.69.0
+   Compiling salvo_extra v0.69.0
+   Compiling salvo-session v0.69.0
+   Compiling salvo v0.69.0
+   Compiling api-gateway v0.1.0 (D:\code\github\quorum\crates\api-gateway)
+error[E0433]: cannot find module or crate `rust_decimal` in this scope
+   --> crates\api-gateway\src\handlers.rs:511:16
+    |
+511 |         let p: rust_decimal::Decimal = payload.price.parse().unwrap_or_default();
+    |                ^^^^^^^^^^^^ use of unresolved module or unlinked crate `rust_decimal`
+    |
+    = help: if you wanted to use a crate named `rust_decimal`, use `cargo add rust_decimal` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `rust_decimal` in this scope
+   --> crates\api-gateway\src\handlers.rs:512:16
+    |
+512 |         let q: rust_decimal::Decimal = payload.quantity.parse().unwrap_or_default();
+    |                ^^^^^^^^^^^^ use of unresolved module or unlinked crate `rust_decimal`
+    |
+    = help: if you wanted to use a crate named `rust_decimal`, use `cargo add rust_decimal` to add it to your `Cargo.toml`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `api-gateway` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...

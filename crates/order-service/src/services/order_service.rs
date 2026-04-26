@@ -7,7 +7,7 @@ use std::str::FromStr;
 use crate::models::{Order, OrderQuery, OrderSide, OrderType, OrderStatus};
 use crate::repository::OrderRepository;
 use db::DBPool;
-use crate::pb::{
+use api::order::{
     CreateOrderRequest, CreateOrderResponse,
     CancelOrderRequest, CancelOrderResponse,
     GetOrderRequest, GetOrderResponse,

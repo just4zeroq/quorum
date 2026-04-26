@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tonic::transport::Server as TonicServer;
 use crate::config::Config;
 use crate::services::MarketService;
-use crate::pb::prediction_market_service_server::PredictionMarketServiceServer;
+use api::prediction_market::prediction_market_service_server::PredictionMarketServiceServer;
 use queue::{ProducerManager, Config as QueueConfig};
 
 pub struct PredictionMarketServer {
@@ -54,12 +54,7 @@ impl PredictionMarketServer {
         let market_service = MarketService::new(pool, portfolio_client)
             .with_event_producer(event_producer);
 
-        let reflection_service = tonic_reflection::server::Builder::configure()
-            .register_encoded_file_descriptor_set(include_bytes!("pb/prediction_market.desc"))
-            .build_v1()?;
-
         TonicServer::builder()
-            .add_service(reflection_service)
             .add_service(PredictionMarketServiceServer::new(market_service))
             .serve(addr)
             .await?;

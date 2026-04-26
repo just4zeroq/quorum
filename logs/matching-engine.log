@@ -1,0 +1,147 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling serde_core v1.0.228
+   Compiling serde v1.0.228
+   Compiling getrandom v0.3.4
+   Compiling stable_deref_trait v1.2.1
+   Compiling futures-channel v0.3.32
+   Compiling futures-io v0.3.32
+   Compiling futures-task v0.3.32
+   Compiling shlex v1.3.0
+   Compiling find-msvc-tools v0.1.9
+   Compiling version_check v0.9.5
+   Compiling syn v1.0.109
+   Compiling litemap v0.8.2
+   Compiling syn v2.0.117
+   Compiling writeable v0.6.3
+   Compiling icu_normalizer_data v2.2.0
+   Compiling utf8_iter v1.0.4
+   Compiling icu_properties_data v2.2.0
+   Compiling pkg-config v0.3.33
+   Compiling winapi v0.3.9
+   Compiling rand_core v0.10.1
+   Compiling semver v1.0.28
+   Compiling getrandom v0.4.2
+   Compiling num-traits v0.2.19
+   Compiling zstd-safe v6.0.6
+   Compiling crc32fast v1.5.0
+   Compiling cpufeatures v0.3.0
+   Compiling crossbeam-utils v0.8.21
+   Compiling chacha20 v0.10.0
+   Compiling bytecheck v0.6.12
+   Compiling rustc_version v0.4.1
+   Compiling adler2 v2.0.1
+   Compiling ahash v0.7.8
+   Compiling snap v1.1.1
+   Compiling simd-adler32 v0.3.9
+   Compiling form_urlencoded v1.2.2
+   Compiling thiserror v2.0.18
+   Compiling crc32c v0.6.8
+   Compiling powerfmt v0.2.0
+   Compiling rend v0.4.2
+   Compiling simdutf8 v0.1.5
+   Compiling miniz_oxide v0.8.9
+   Compiling jobserver v0.1.34
+   Compiling rand v0.10.1
+   Compiling synstructure v0.13.2
+   Compiling prettyplease v0.2.37
+   Compiling ryu v1.0.23
+   Compiling deranged v0.5.8
+   Compiling cc v1.2.60
+   Compiling hashbrown v0.12.3
+   Compiling ahash v0.8.12
+   Compiling arc-swap v1.9.1
+   Compiling integer-encoding v4.1.0
+   Compiling num_cpus v1.17.0
+   Compiling flate2 v1.1.9
+   Compiling unsafe-libyaml v0.2.11
+   Compiling rkyv v0.7.46
+   Compiling bytemuck v1.25.0
+   Compiling num-conv v0.2.1
+   Compiling time-core v0.1.8
+   Compiling sha1_smol v1.0.1
+   Compiling crossbeam-channel v0.5.15
+   Compiling anyhow v1.0.102
+   Compiling safe_arch v0.7.4
+   Compiling twox-hash v2.1.2
+   Compiling symlink v0.1.0
+   Compiling seahash v4.1.0
+   Compiling lz4_flex v0.11.6
+   Compiling memmap2 v0.9.10
+   Compiling indexmap v1.9.3
+   Compiling socket2 v0.4.10
+   Compiling core_affinity v0.8.3
+   Compiling wide v0.7.33
+   Compiling serde_derive v1.0.228
+   Compiling zerofrom-derive v0.1.7
+   Compiling yoke-derive v0.8.2
+   Compiling tokio-macros v2.7.0
+   Compiling futures-macro v0.3.32
+   Compiling zerovec-derive v0.11.3
+   Compiling displaydoc v0.2.5
+   Compiling tracing-attributes v0.1.31
+   Compiling prost-derive v0.13.5
+   Compiling async-trait v0.1.89
+   Compiling thiserror-impl v1.0.69
+   Compiling pin-project-internal v1.1.11
+   Compiling async-stream-impl v0.3.6
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+   Compiling lz4-sys v1.11.1+lz4-1.10.0
+   Compiling thiserror-impl v2.0.18
+   Compiling async-stream v0.3.6
+   Compiling serde_json v1.0.149
+   Compiling time v0.3.47
+   Compiling pin-project v1.1.11
+   Compiling thiserror v1.0.69
+   Compiling tracing v0.1.44
+   Compiling zerofrom v0.1.7
+   Compiling ptr_meta_derive v0.1.4
+   Compiling bytecheck_derive v0.6.12
+   Compiling rkyv_derive v0.7.46
+   Compiling disruptor v3.7.1
+   Compiling prost v0.13.5
+   Compiling yoke v0.8.2
+   Compiling ptr_meta v0.1.4
+   Compiling zerovec v0.11.6
+   Compiling zerotrie v0.2.4
+   Compiling prost-types v0.13.5
+   Compiling tinystr v0.8.3
+   Compiling potential_utf v0.1.5
+   Compiling icu_locale_core v2.2.0
+   Compiling icu_collections v2.2.0
+   Compiling prost-build v0.13.5
+   Compiling smallvec v1.15.1
+   Compiling slab v0.4.12
+   Compiling chrono v0.4.44
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling futures-util v0.3.32
+   Compiling parking_lot_core v0.9.12
+   Compiling tonic-build v0.12.3
+   Compiling tracing-subscriber v0.3.23
+   Compiling bincode v1.3.3
+   Compiling parking_lot v0.12.5
+   Compiling icu_provider v2.2.0
+   Compiling tokio v1.52.1
+   Compiling icu_properties v2.2.0
+   Compiling icu_normalizer v2.2.0
+   Compiling zstd v0.12.4
+   Compiling matching-engine v0.2.0 (D:\code\github\quorum\crates\matching-engine)
+   Compiling lz4 v1.28.1
+   Compiling tracing-appender v0.2.5
+   Compiling idna_adapter v1.2.1
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+error: failed to run custom build command for `matching-engine v0.2.0 (D:\code\github\quorum\crates\matching-engine)`
+
+Caused by:
+  process didn't exit successfully: `D:\code\github\quorum\target\release\build\matching-engine-11250422091b483a\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\matching-engine\src/pb/matching.proto
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\matching-engine\src/pb
+
+  --- stderr
+  Error: Custom { kind: NotFound, error: "Could not find `protoc`. If `protoc` is installed, try setting the `PROTOC` environment variable to the path of the `protoc` binary. Try installing `protobuf-compiler` or `protobuf` using your package manager. It is also available at https://github.com/protocolbuffers/protobuf/releases  For more information: https://docs.rs/prost-build/#sourcing-protoc" }
+warning: build failed, waiting for other jobs to finish...

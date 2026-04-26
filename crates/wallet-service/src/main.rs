@@ -7,6 +7,7 @@ use wallet_service::services::WalletServiceImpl;
 use wallet_service::repository::{
     DepositRepository, WithdrawRepository, WhitelistRepository, PaymentPasswordRepository,
 };
+use api::wallet::wallet_service_server::WalletServiceServer;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -51,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Wallet service listening on {}", addr);
 
     Server::builder()
-        .add_service(wallet_service::pb::wallet_service_server::WalletServiceServer::new(service))
+        .add_service(WalletServiceServer::new(service))
         .serve(addr)
         .await?;
 

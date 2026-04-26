@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x D:/code/github/quorum/scripts/*.sh)",
+      "Bash(./scripts/start-all.sh)",
+      "Bash(choco install *)",
+      "Bash(cargo cache *)",
+      "Bash(cargo clean *)"
+    ]
+  }
+}

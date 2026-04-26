@@ -1,0 +1,32 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling subtle v2.6.1
+   Compiling chrono v0.4.44
+   Compiling libsqlite3-sys v0.27.0
+   Compiling auth-service v0.1.0 (D:\code\github\quorum\crates\auth-service)
+   Compiling hyper-timeout v0.5.2
+   Compiling redis v0.24.0
+   Compiling digest v0.10.7
+   Compiling tonic v0.12.3
+   Compiling sha2 v0.10.9
+   Compiling hmac v0.12.1
+   Compiling md-5 v0.10.6
+   Compiling signature v2.2.0
+   Compiling sha1 v0.10.6
+   Compiling rsa v0.9.10
+   Compiling hkdf v0.12.4
+   Compiling sqlx-core v0.7.4
+error: failed to run custom build command for `auth-service v0.1.0 (D:\code\github\quorum\crates\auth-service)`
+
+Caused by:
+  process didn't exit successfully: `D:\code\github\quorum\target\release\build\auth-service-69b4e68c9494967f\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\auth-service\src/pb/auth_service.proto
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\auth-service\src/pb
+
+  --- stderr
+  Error: Custom { kind: NotFound, error: "Could not find `protoc`. If `protoc` is installed, try setting the `PROTOC` environment variable to the path of the `protoc` binary. Try installing `protobuf-compiler` or `protobuf` using your package manager. It is also available at https://github.com/protocolbuffers/protobuf/releases  For more information: https://docs.rs/prost-build/#sourcing-protoc" }
+warning: build failed, waiting for other jobs to finish...

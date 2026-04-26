@@ -2,11 +2,10 @@
 
 use std::net::SocketAddr;
 use tonic::transport::Server;
-use tonic_reflection::server::Builder;
 
 use crate::config::Config;
 use crate::services::OrderServiceImpl;
-use crate::pb::order_service_server::OrderServiceServer;
+use api::order::order_service_server::OrderServiceServer;
 use crate::queue_consumer::MatchEventConsumer;
 use crate::queue_producer::OrderCommandProducer;
 use db::{DBPool, Config as DBConfig};
@@ -82,11 +81,6 @@ impl OrderServer {
 
         tracing::info!("Starting Order Service on {}", addr);
 
-        // 添加反射服务
-        let reflection_service = Builder::configure()
-            .register_encoded_file_descriptor_set(include_bytes!("pb/order_service.desc"))
-            .build_v1()?;
-
         // 启动 Queue 消费者
         if let Some(mut consumer) = self.queue_consumer.take() {
             let _handle = tokio::spawn(async move {
@@ -97,7 +91,6 @@ impl OrderServer {
 
         // 构建 gRPC 服务器
         Server::builder()
-            .add_service(reflection_service)
             .add_service(OrderServiceServer::new(order_service))
             .serve(addr)
             .await?;

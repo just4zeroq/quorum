@@ -11,15 +11,15 @@ use crate::models::WithdrawStatus;
 use crate::repository::{
     DepositRepository, WithdrawRepository, WhitelistRepository, PaymentPasswordRepository,
 };
-use crate::pb::wallet_service_server::WalletService;
-use crate::pb::*;
+use api::wallet::wallet_service_server::WalletService;
+use api::wallet::*;
 
 pub struct WalletServiceImpl {
     deposit_repo: Arc<DepositRepository>,
     withdraw_repo: Arc<WithdrawRepository>,
     whitelist_repo: Arc<WhitelistRepository>,
     payment_password_repo: Arc<PaymentPasswordRepository>,
-    portfolio_client: api::portfolio::portfolio_service_client::PortfolioServiceClient<tonic::transport::Channel>,
+    portfolio_client: api::PortfolioServiceClient<tonic::transport::Channel>,
     require_whitelist: bool,
     require_payment_password: bool,
     supported_chains: Vec<String>,
@@ -32,7 +32,7 @@ impl WalletServiceImpl {
         withdraw_repo: WithdrawRepository,
         whitelist_repo: WhitelistRepository,
         payment_password_repo: PaymentPasswordRepository,
-        portfolio_client: api::portfolio::portfolio_service_client::PortfolioServiceClient<tonic::transport::Channel>,
+        portfolio_client: api::PortfolioServiceClient<tonic::transport::Channel>,
     ) -> Self {
         Self {
             deposit_repo: Arc::new(deposit_repo),
@@ -178,8 +178,8 @@ impl WalletService for WalletServiceImpl {
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        let deposits: Vec<crate::pb::DepositRecord> = records.into_iter().map(|r| {
-            crate::pb::DepositRecord {
+        let deposits: Vec<api::wallet::DepositRecord> = records.into_iter().map(|r| {
+            api::wallet::DepositRecord {
                 tx_id: r.tx_id,
                 chain: r.chain,
                 amount: r.amount,

@@ -1,0 +1,87 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling prost v0.13.5
+   Compiling sqlx-sqlite v0.7.4
+warning: unused import: `sha3::Keccak256`
+  --> crates\common\utils\src\wallet.rs:11:5
+   |
+11 | use sha3::Keccak256;
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `k256::elliptic_curve::sec1::ToEncodedPoint`
+  --> crates\common\utils\src\wallet.rs:10:5
+   |
+10 | use k256::elliptic_curve::sec1::ToEncodedPoint;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `prefix` is never read
+  --> crates\common\utils\src\id\generator.rs:13:5
+   |
+12 | pub struct IdGenerator<P: IdPrefix> {
+   |            ----------- field in this struct
+13 |     prefix: P,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `utils` (lib) generated 3 warnings (run `cargo fix --lib -p utils` to apply 1 suggestion)
+   Compiling market-data-service v0.1.0 (D:\code\github\quorum\crates\market-data-service)
+warning: unused import: `shared::*`
+ --> crates\domain\src\order\mod.rs:9:9
+  |
+9 | pub use shared::*;
+  |         ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `super::model::Trade`
+ --> crates\domain\src\trade\event\mod.rs:4:5
+  |
+4 | use super::model::Trade;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `shared::*`
+ --> crates\domain\src\trade\mod.rs:9:9
+  |
+9 | pub use shared::*;
+  |         ^^^^^^^^^
+
+warning: unused import: `shared::*`
+ --> crates\domain\src\user\mod.rs:9:9
+  |
+9 | pub use shared::*;
+  |         ^^^^^^^^^
+
+warning: unused import: `shared::*`
+ --> crates\domain\src\market_data\mod.rs:9:9
+  |
+9 | pub use shared::*;
+  |         ^^^^^^^^^
+
+warning: unused import: `shared::*`
+ --> crates\domain\src\prediction_market\mod.rs:9:9
+  |
+9 | pub use shared::*;
+  |         ^^^^^^^^^
+
+warning: `domain` (lib) generated 6 warnings (run `cargo fix --lib -p domain` to apply 6 suggestions)
+   Compiling cache v0.1.0 (D:\code\github\quorum\crates\common\cache)
+   Compiling tonic v0.12.3
+   Compiling prost-types v0.13.5
+   Compiling sqlx v0.7.4
+error: failed to run custom build command for `market-data-service v0.1.0 (D:\code\github\quorum\crates\market-data-service)`
+
+Caused by:
+  process didn't exit successfully: `D:\code\github\quorum\target\release\build\market-data-service-2a34308d589a956e\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\market-data-service\src/pb/market_data.proto
+  cargo:rerun-if-changed=D:\code\github\quorum\crates\market-data-service\src/pb
+
+  --- stderr
+  Error: Custom { kind: NotFound, error: "Could not find `protoc`. If `protoc` is installed, try setting the `PROTOC` environment variable to the path of the `protoc` binary. Try installing `protobuf-compiler` or `protobuf` using your package manager. It is also available at https://github.com/protocolbuffers/protobuf/releases  For more information: https://docs.rs/prost-build/#sourcing-protoc" }
+warning: build failed, waiting for other jobs to finish...

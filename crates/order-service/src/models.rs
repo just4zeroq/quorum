@@ -1,10 +1,11 @@
 //! Order Service Data Models
-//!
-//! Re-exports from domain crate
 
-pub use domain::order::model::{Order, OrderStatus, OrderType, OrderSide, OrderQuery, OrderEventRecord};
-pub use domain::order::event::OrderEvent;
-pub use domain::trade::model::{Trade, TradeSide};
+pub mod order;
+pub mod trade;
+
+pub use order::model::{Order, OrderStatus, OrderType, OrderSide, OrderQuery, OrderEventRecord};
+pub use order::event::OrderEvent;
+pub use trade::model::{Trade, TradeSide};
 
 /// 创建订单请求
 use rust_decimal::Decimal;
