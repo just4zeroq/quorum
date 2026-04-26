@@ -3,9 +3,7 @@
 //! 提供对后端微服务的 gRPC 调用能力，使用 etcd 服务发现实现动态路由
 
 use std::collections::HashMap;
-use registry::{ServiceDiscovery, ServiceInstance, RegistryError};
-use tokio::sync::RwLock;
-use std::sync::Arc;
+use registry::{ServiceDiscovery, RegistryError};
 
 /// GrpcClientManager 使用 etcd 服务发现管理所有 gRPC 客户端
 ///
@@ -118,8 +116,99 @@ impl GrpcClientManager {
     }
 }
 
-/// 连接到 gRPC 服务（保留用于直接连接场景）
-pub async fn connect(addr: String) -> Result<tonic::transport::Channel, tonic::transport::Error> {
+// ============ 向后兼容的静态函数 ============
+
+use tonic::transport::Channel;
+use std::time::Duration;
+
+/// gRPC 客户端配置（保留用于向后兼容）
+#[derive(Clone)]
+pub struct GrpcConfig {
+    pub user_service_addr: String,
+    pub order_service_addr: String,
+    pub auth_service_addr: String,
+    pub portfolio_service_addr: String,
+    pub risk_service_addr: String,
+    pub market_data_service_addr: String,
+    pub prediction_market_service_addr: String,
+    pub wallet_service_addr: String,
+    pub timeout: Duration,
+}
+
+impl Default for GrpcConfig {
+    fn default() -> Self {
+        Self {
+            user_service_addr: "http://127.0.0.1:50001".to_string(),
+            order_service_addr: "http://127.0.0.1:50004".to_string(),
+            auth_service_addr: "http://127.0.0.1:50009".to_string(),
+            portfolio_service_addr: "http://127.0.0.1:50003".to_string(),
+            risk_service_addr: "http://127.0.0.1:50005".to_string(),
+            market_data_service_addr: "http://127.0.0.1:50006".to_string(),
+            prediction_market_service_addr: "http://127.0.0.1:50008".to_string(),
+            wallet_service_addr: "http://127.0.0.1:50002".to_string(),
+            timeout: Duration::from_secs(10),
+        }
+    }
+}
+
+/// 连接到 gRPC 服务
+pub async fn connect(addr: String) -> Result<Channel, tonic::transport::Error> {
     let endpoint = tonic::transport::Endpoint::new(addr)?;
-    endpoint.timeout(std::time::Duration::from_secs(10)).connect().await
+    endpoint.timeout(Duration::from_secs(10)).connect().await
+}
+
+/// 创建 User Service 客户端
+pub async fn create_user_client(
+    addr: String,
+) -> Result<api::UserServiceClient<Channel>, tonic::transport::Error> {
+    api::user::create_user_client(&addr).await
+}
+
+/// 创建 Order Service 客户端
+pub async fn create_order_client(
+    addr: String,
+) -> Result<api::OrderServiceClient<Channel>, tonic::transport::Error> {
+    api::order::create_order_client(&addr).await
+}
+
+/// 创建 Auth Service 客户端
+pub async fn create_auth_client(
+    addr: String,
+) -> Result<api::AuthServiceClient<Channel>, tonic::transport::Error> {
+    api::auth::create_auth_client(&addr).await
+}
+
+/// 创建 Market Data Service 客户端
+pub async fn create_market_data_client(
+    addr: String,
+) -> Result<api::MarketDataServiceClient<Channel>, tonic::transport::Error> {
+    api::market_data::create_market_data_client(&addr).await
+}
+
+/// 创建 Prediction Market Service 客户端
+pub async fn create_prediction_market_client(
+    addr: String,
+) -> Result<api::PredictionMarketServiceClient<Channel>, tonic::transport::Error> {
+    api::prediction_market::create_prediction_market_client(&addr).await
+}
+
+/// 创建 Portfolio Service 客户端
+pub async fn create_portfolio_client(
+    addr: String,
+) -> Result<api::PortfolioServiceClient<Channel>, tonic::transport::Error> {
+    api::portfolio::create_portfolio_client(&addr).await
+}
+
+/// 创建 Risk Service 客户端
+pub async fn create_risk_client(
+    addr: String,
+) -> Result<api::RiskServiceClient<Channel>, tonic::transport::Error> {
+    api::risk::create_risk_client(&addr).await
+}
+
+/// 创建 Wallet Service 客户端
+pub async fn create_wallet_client(
+    addr: String,
+) -> Result<api::WalletServiceClient<Channel>, tonic::transport::Error> {
+    api::wallet::create_wallet_client(&addr).await
 }

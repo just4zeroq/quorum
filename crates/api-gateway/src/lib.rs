@@ -11,4 +11,4 @@ pub mod ws_proxy;
 pub use router::create_router;
 pub use middleware::{auth, rate_limit, log_request, cors_handler};
 pub use handlers::*;
-pub use grpc::{GrpcClientManager, connect};
+pub use grpc::{GrpcClientManager, connect, GrpcConfig};
