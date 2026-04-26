@@ -17,6 +17,18 @@ pub struct ServiceRegistry {
     lease_id: i64,
 }
 
+impl Clone for ServiceRegistry {
+    fn clone(&self) -> Self {
+        Self {
+            service_name: self.service_name.clone(),
+            instance_id: self.instance_id.clone(),
+            addr: self.addr.clone(),
+            client: self.client.clone(),
+            lease_id: self.lease_id,
+        }
+    }
+}
+
 impl ServiceRegistry {
     pub async fn new(
         service_name: &str,

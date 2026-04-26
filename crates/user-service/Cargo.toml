@@ -11,6 +11,7 @@ common = { path = "../common" }
 db = { path = "../common/db" }
 cache = { path = "../common/cache" }
 api = { path = "../api" }
+registry = { workspace = true }
 
 # Async runtime
 tokio = { workspace = true }

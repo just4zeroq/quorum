@@ -15,6 +15,8 @@ pub struct Config {
     pub jwt: JwtConfig,
     /// 安全配置
     pub security: SecurityConfig,
+    /// etcd 服务注册发现 endpoints
+    pub etcd_endpoints: Vec<String>,
 }
 
 /// 服务元信息
@@ -121,6 +123,7 @@ impl Default for Config {
             cache: None,
             jwt: JwtConfig::default(),
             security: SecurityConfig::default(),
+            etcd_endpoints: vec!["http://127.0.0.1:2379".to_string()],
         }
     }
 }

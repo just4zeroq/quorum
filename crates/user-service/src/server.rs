@@ -5,6 +5,7 @@ use std::sync::Arc;
 use sqlx::PgPool;
 
 use api::user::user_service_server::UserServiceServer;
+use registry::ServiceRegistry;
 use tonic::transport::Server;
 
 use crate::config::Config;
@@ -15,6 +16,8 @@ pub struct UserGrpcServer {
     config: Arc<Config>,
     user_service: Arc<UserServiceImpl>,
     auth_service: Option<Arc<AuthServiceImpl>>,
+    registry: Option<ServiceRegistry>,
+    heartbeat_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl UserGrpcServer {
@@ -45,12 +48,25 @@ impl UserGrpcServer {
             config,
             user_service,
             auth_service,
+            registry: None,
+            heartbeat_handle: None,
         })
     }
 
     pub async fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         let addr: SocketAddr = format!("[::1]:{}", self.config.service.port).parse()?;
 
+        // 注册到 etcd
+        let registry = ServiceRegistry::new(
+            "user-service",
+            &format!("http://{}", addr),
+            &self.config.etcd_endpoints,
+        ).await?;
+
+        registry.register(30).await?;
+        let heartbeat_handle = registry.clone().start_heartbeat(30, 10);
+
+        tracing::info!("User service registered to etcd");
         tracing::info!("User service gRPC server listening on {}", addr);
 
         let mut server = Server::builder()
