@@ -8,6 +8,7 @@ pub struct Config {
     pub database: DatabaseConfig,
     pub wallet: WalletConfig,
     pub portfolio_service_addr: String,
+    pub etcd_endpoints: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -50,6 +51,7 @@ impl Default for Config {
                 default_fee: "0.001".to_string(),
             },
             portfolio_service_addr: "http://[::1]:50003".to_string(),
+            etcd_endpoints: vec!["http://127.0.0.1:2379".to_string()],
         }
     }
 }

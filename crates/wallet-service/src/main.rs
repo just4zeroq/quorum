@@ -3,6 +3,7 @@
 use std::net::SocketAddr;
 use tonic::transport::Server;
 
+use registry::ServiceRegistry;
 use wallet_service::services::WalletServiceImpl;
 use wallet_service::repository::{
     DepositRepository, WithdrawRepository, WhitelistRepository, PaymentPasswordRepository,
@@ -50,6 +51,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Start gRPC server
     let addr: SocketAddr = format!("{}:{}", config.service.host, config.service.port).parse()?;
     tracing::info!("Wallet service listening on {}", addr);
+
+    // Register to etcd
+    let registry = ServiceRegistry::new(
+        "wallet-service",
+        &format!("http://{}", addr),
+        &config.etcd_endpoints,
+    )
+    .await
+    .map_err(|e| format!("Failed to create service registry: {}", e))?;
+    registry
+        .register(30)
+        .await
+        .map_err(|e| format!("Failed to register service: {}", e))?;
+    let _heartbeat_handle = registry.clone().start_heartbeat(30, 10);
 
     Server::builder()
         .add_service(WalletServiceServer::new(service))
