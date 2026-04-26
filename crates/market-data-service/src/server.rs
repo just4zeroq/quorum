@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 use tonic::transport::Server as TonicServer;
+use registry::ServiceRegistry;
 use crate::config::Config;
 use crate::services::MarketDataServiceImpl;
 use api::market_data::market_data_service_server::MarketDataServiceServer;
@@ -21,6 +22,18 @@ impl MarketDataServer {
             .parse()?;
 
         tracing::info!("Starting market-data-service gRPC on {}", addr);
+
+        // 注册到 etcd
+        let registry = ServiceRegistry::new(
+            "market-data-service",
+            &format!("http://{}", addr),
+            &self.config.etcd_endpoints,
+        ).await?;
+
+        registry.register(30).await?;
+        let _heartbeat_handle = registry.clone().start_heartbeat(30, 10);
+
+        tracing::info!("Market data service registered to etcd");
 
         // 创建数据库连接池
         let pool = sqlx::PgPool::connect(&format!(

@@ -25,3 +25,7 @@ redis:
 prediction_market:
   host: localhost
   port: 50010
+
+# etcd registry
+etcd_endpoints:
+  - "http://127.0.0.1:2379"

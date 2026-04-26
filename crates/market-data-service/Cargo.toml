@@ -40,3 +40,6 @@ rust_decimal = { workspace = true }
 async-trait = { workspace = true }
 utils = { path = "../common/utils" }
 
+# Registry
+registry.workspace = true
+

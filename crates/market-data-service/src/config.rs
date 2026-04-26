@@ -8,6 +8,7 @@ pub struct Config {
     pub db: DbConfig,
     pub redis: RedisConfig,
     pub prediction_market: PredictionMarketConfig,
+    pub etcd_endpoints: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -86,6 +87,7 @@ impl Default for Config {
                 host: "localhost".to_string(),
                 port: 50010,
             },
+            etcd_endpoints: vec!["http://127.0.0.1:2379".to_string()],
         }
     }
 }
