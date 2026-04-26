@@ -9,6 +9,7 @@ pub struct Config {
     pub redis: RedisConfig,
     pub queue: QueueConfig,
     pub portfolio_service_addr: String,
+    pub etcd_endpoints: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -90,6 +91,7 @@ impl Default for Config {
                 port: 6379,
             },
             portfolio_service_addr: "http://[::1]:50003".to_string(),
+            etcd_endpoints: vec!["http://127.0.0.1:2379".to_string()],
         }
     }
 }
