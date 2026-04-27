@@ -7,13 +7,11 @@ use rust_decimal::Decimal;
 use tonic::{Request, Response, Status};
 
 use crate::account::AccountService;
-use crate::clearing::ClearingService;
 use crate::errors::PortfolioError;
 use crate::ledger::LedgerService;
-use crate::models::{LedgerType, PositionSide};
+use crate::models::{LedgerType, PositionSide, Position, Settlement, SettlementStatus, LedgerEntry};
 use crate::position::PositionService;
 use crate::repository::PortfolioRepository;
-use crate::clearing::TradeInfo;
 
 use api::portfolio::portfolio_service_server::PortfolioService;
 use api::portfolio::{
@@ -68,6 +66,7 @@ fn map_error(e: PortfolioError) -> Status {
         PortfolioError::LedgerFailed(_) => Status::internal(e.to_string()),
         PortfolioError::InvalidOperation(_) => Status::invalid_argument(e.to_string()),
         PortfolioError::Database(_) => Status::internal(e.to_string()),
+        PortfolioError::OptimisticLockFailed(_) => Status::aborted(e.to_string()),
     }
 }
 
@@ -226,15 +225,13 @@ impl PortfolioService for PortfolioServiceImpl {
 
     /// 结算一笔成交
     ///
-    /// 完整流程:
+    /// 完整流程（原子事务）:
     /// 1. 买家扣款 (price * size + taker_fee)
     /// 2. 卖家收款 (price * size - maker_fee)
     /// 3. 买家开仓 (Long)
     /// 4. 卖家开仓 (Short)
     /// 5. 记录 Settlement
     /// 6. 记录账本流水
-    ///
-    /// TODO: 需要数据库事务保证原子性
     async fn settle_trade(
         &self,
         request: Request<SettleTradeRequest>,
@@ -248,103 +245,175 @@ impl PortfolioService for PortfolioServiceImpl {
         let amount = price * size;
         let taker_fee = amount * taker_fee_rate;
         let maker_fee = amount * maker_fee_rate;
+        let buyer_debit = amount + taker_fee;
+        let seller_credit = amount - maker_fee;
+        let outcome_id = req.outcome_id;
+        let now = chrono::Utc::now();
 
-        let account_svc = AccountService::new(self.repo.clone());
-        let pos_svc = PositionService::new(self.repo.clone());
-        let clearing_svc = ClearingService::new(self.repo.clone());
+        // 所有操作在一个数据库事务中
+        let mut tx = self.repo.begin_tx().await.map_err(map_error)?;
 
-        // 1. 买家扣款
-        let buyer_account = account_svc
-            .debit(&req.buyer_id, "USDC", amount + taker_fee)
+        // 1. 买家扣款（乐观锁）
+        let buyer_acct = tx.get_or_create_account(&req.buyer_id, "USDC").await.map_err(map_error)?;
+        if buyer_acct.available < buyer_debit {
+            return Err(map_error(PortfolioError::InsufficientBalance {
+                available: buyer_acct.available.to_string(),
+                required: buyer_debit.to_string(),
+            }));
+        }
+        let rows = tx
+            .debit_available_with_version(&req.buyer_id, "USDC", buyer_debit, buyer_acct.version)
             .await
             .map_err(map_error)?;
+        if rows == 0 {
+            return Err(map_error(PortfolioError::OptimisticLockFailed(
+                "buyer debit conflict in settle_trade".into(),
+            )));
+        }
+        let buyer_balance_after = buyer_acct.available - buyer_debit;
 
-        // 2. 卖家收款
-        let seller_account = account_svc
-            .credit(&req.seller_id, "USDC", amount - maker_fee)
+        // 2. 卖家收款（乐观锁）
+        let seller_acct = tx.get_or_create_account(&req.seller_id, "USDC").await.map_err(map_error)?;
+        let rows = tx
+            .credit_with_version(&req.seller_id, "USDC", seller_credit, seller_acct.version)
             .await
             .map_err(map_error)?;
+        if rows == 0 {
+            return Err(map_error(PortfolioError::OptimisticLockFailed(
+                "seller credit conflict in settle_trade".into(),
+            )));
+        }
+        let seller_balance_after = seller_acct.available + seller_credit;
 
         // 3. 买家开仓 (Long)
-        pos_svc
-            .open_or_add_position(
-                &req.buyer_id,
-                req.market_id,
-                req.outcome_id,
-                PositionSide::Long,
-                size,
-                price,
-            )
-            .await
-            .map_err(map_error)?;
+        {
+            let existing = tx
+                .get_position(&req.buyer_id, req.market_id as i64, outcome_id as i64, "long")
+                .await
+                .map_err(map_error)?;
+            let mut pos = if let Some(mut p) = existing {
+                let total_cost = p.entry_price * p.size + price * size;
+                p.size += size;
+                p.entry_price = total_cost / p.size;
+                p.version += 1;
+                p.updated_at = now;
+                p
+            } else {
+                Position {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    user_id: req.buyer_id.clone(),
+                    market_id: req.market_id,
+                    outcome_id,
+                    side: PositionSide::Long,
+                    size,
+                    entry_price: price,
+                    version: 0,
+                    created_at: now,
+                    updated_at: now,
+                }
+            };
+            if !tx.upsert_position_with_version(&mut pos).await.map_err(map_error)? {
+                return Err(map_error(PortfolioError::OptimisticLockFailed(
+                    "buyer position conflict in settle_trade".into(),
+                )));
+            }
+        }
 
         // 4. 卖家开仓 (Short)
-        pos_svc
-            .open_or_add_position(
-                &req.seller_id,
-                req.market_id,
-                req.outcome_id,
-                PositionSide::Short,
-                size,
-                price,
-            )
-            .await
-            .map_err(map_error)?;
+        {
+            let existing = tx
+                .get_position(&req.seller_id, req.market_id as i64, outcome_id as i64, "short")
+                .await
+                .map_err(map_error)?;
+            let mut pos = if let Some(mut p) = existing {
+                let total_cost = p.entry_price * p.size + price * size;
+                p.size += size;
+                p.entry_price = total_cost / p.size;
+                p.version += 1;
+                p.updated_at = now;
+                p
+            } else {
+                Position {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    user_id: req.seller_id.clone(),
+                    market_id: req.market_id,
+                    outcome_id,
+                    side: PositionSide::Short,
+                    size,
+                    entry_price: price,
+                    version: 0,
+                    created_at: now,
+                    updated_at: now,
+                }
+            };
+            if !tx.upsert_position_with_version(&mut pos).await.map_err(map_error)? {
+                return Err(map_error(PortfolioError::OptimisticLockFailed(
+                    "seller position conflict in settle_trade".into(),
+                )));
+            }
+        }
 
-        // 5. 记录 Settlement
-        let trade_info = TradeInfo {
+        // 5. 记录 Settlements
+        let buyer_settlement = Settlement {
+            id: uuid::Uuid::new_v4().to_string(),
             trade_id: req.trade_id.clone(),
             market_id: req.market_id,
-            outcome_id: req.outcome_id,
-            buyer_id: req.buyer_id.clone(),
-            seller_id: req.seller_id.clone(),
-            price,
-            size,
-            taker_fee_rate,
-            maker_fee_rate,
+            user_id: req.buyer_id.clone(),
+            outcome_id,
+            side: PositionSide::Long,
+            amount,
+            fee: taker_fee,
+            payout: Decimal::ZERO,
+            status: SettlementStatus::Completed,
+            created_at: now,
         };
-        let settlements = clearing_svc
-            .settle_trade(&trade_info)
-            .await
-            .map_err(map_error)?;
+        let seller_settlement = Settlement {
+            id: uuid::Uuid::new_v4().to_string(),
+            trade_id: req.trade_id.clone(),
+            market_id: req.market_id,
+            user_id: req.seller_id.clone(),
+            outcome_id,
+            side: PositionSide::Short,
+            amount,
+            fee: maker_fee,
+            payout: Decimal::ZERO,
+            status: SettlementStatus::Completed,
+            created_at: now,
+        };
+        tx.insert_settlement(&buyer_settlement).await.map_err(map_error)?;
+        tx.insert_settlement(&seller_settlement).await.map_err(map_error)?;
 
         // 6. 记录账本流水
-        let ledger_svc = LedgerService::new(self.repo.clone());
+        tx.insert_ledger(&LedgerEntry {
+            id: uuid::Uuid::new_v4().to_string(),
+            user_id: req.buyer_id.clone(),
+            account_id: buyer_acct.id.clone(),
+            ledger_type: LedgerType::Trade,
+            asset: "USDC".to_string(),
+            amount: buyer_debit,
+            balance_after: buyer_balance_after,
+            reference_id: req.trade_id.clone(),
+            reference_type: "trade".to_string(),
+            created_at: now,
+        }).await.map_err(map_error)?;
 
-        // 买家流水（支出）
-        ledger_svc
-            .record(
-                &req.buyer_id,
-                &buyer_account.id,
-                LedgerType::Trade,
-                "USDC",
-                amount + taker_fee,
-                buyer_account.available,
-                &req.trade_id,
-                "trade",
-            )
-            .await
-            .map_err(map_error)?;
+        tx.insert_ledger(&LedgerEntry {
+            id: uuid::Uuid::new_v4().to_string(),
+            user_id: req.seller_id.clone(),
+            account_id: seller_acct.id.clone(),
+            ledger_type: LedgerType::Trade,
+            asset: "USDC".to_string(),
+            amount: seller_credit,
+            balance_after: seller_balance_after,
+            reference_id: req.trade_id.clone(),
+            reference_type: "trade".to_string(),
+            created_at: now,
+        }).await.map_err(map_error)?;
 
-        // 卖家流水（收入）
-        ledger_svc
-            .record(
-                &req.seller_id,
-                &seller_account.id,
-                LedgerType::Trade,
-                "USDC",
-                amount - maker_fee,
-                seller_account.available,
-                &req.trade_id,
-                "trade",
-            )
-            .await
-            .map_err(map_error)?;
+        // Commit 事务
+        tx.commit().await.map_err(map_error)?;
 
-        let settlement_id = settlements
-            .first()
-            .map(|s| s.id.clone())
-            .unwrap_or_default();
+        let settlement_id = buyer_settlement.id;
 
         Ok(Response::new(SettleTradeResponse {
             success: true,
@@ -355,76 +424,83 @@ impl PortfolioService for PortfolioServiceImpl {
     /// 结算市场赔付
     ///
     /// 向所有获胜用户分发赔付资金（1 USDC / 份）
+    /// 所有 payout 在同一个数据库事务中处理
     async fn settle_market(
         &self,
         request: Request<SettleMarketRequest>,
     ) -> Result<Response<SettleMarketResponse>, Status> {
         let req = request.into_inner();
-        let account_svc = AccountService::new(self.repo.clone());
-        let ledger_svc = LedgerService::new(self.repo.clone());
 
-        let mut credited = 0i32;
-
-        for payout in req.payouts {
+        // 解析所有 payout 金额，提前校验
+        let mut payouts = Vec::new();
+        for payout in &req.payouts {
             let payout_amount: Decimal = payout.payout_amount.parse()
                 .map_err(|e| Status::invalid_argument(format!("Invalid payout amount: {}", e)))?;
-
-            if payout_amount <= Decimal::ZERO {
-                continue;
+            if payout_amount > Decimal::ZERO {
+                payouts.push((payout.user_id.clone(), payout_amount));
             }
+        }
 
+        let now = chrono::Utc::now();
+
+        // 所有 payout 在同一事务中处理
+        let mut tx = self.repo.begin_tx().await.map_err(map_error)?;
+
+        let mut credited = 0i32;
+        for (user_id, payout_amount) in &payouts {
             // 1. 创建或获取 USDC 账户
-            let _account = account_svc
-                .get_or_create_account(&payout.user_id, "USDC")
+            let account = tx
+                .get_or_create_account(user_id, "USDC")
                 .await
                 .map_err(map_error)?;
 
-            // 2. 信用入账
-            account_svc
-                .credit(&payout.user_id, "USDC", payout_amount)
+            // 2. 信用入账（乐观锁）
+            let rows = tx
+                .credit_with_version(user_id, "USDC", *payout_amount, account.version)
                 .await
                 .map_err(map_error)?;
+            if rows == 0 {
+                return Err(map_error(PortfolioError::OptimisticLockFailed(
+                    format!("credit conflict for user {} in settle_market", user_id),
+                )));
+            }
+            let balance_after = account.available + payout_amount;
 
-            // 3. 获取更新后的账户
-            let updated = account_svc
-                .get_or_create_account(&payout.user_id, "USDC")
-                .await
-                .map_err(map_error)?;
-
-            // 4. 记录 Settlement
-            let settlement = crate::models::Settlement {
+            // 3. 记录 Settlement
+            let settlement = Settlement {
                 id: uuid::Uuid::new_v4().to_string(),
                 trade_id: format!("market_{}_settle", req.market_id),
                 market_id: req.market_id,
-                user_id: payout.user_id.clone(),
+                user_id: user_id.clone(),
                 outcome_id: req.winning_outcome_id,
-                side: crate::models::PositionSide::Long,
-                amount: payout_amount,
+                side: PositionSide::Long,
+                amount: *payout_amount,
                 fee: Decimal::ZERO,
-                payout: payout_amount,
-                status: crate::models::SettlementStatus::Completed,
-                created_at: chrono::Utc::now(),
+                payout: *payout_amount,
+                status: SettlementStatus::Completed,
+                created_at: now,
             };
-            self.repo.insert_settlement(&settlement).await
-                .map_err(map_error)?;
+            tx.insert_settlement(&settlement).await.map_err(map_error)?;
 
-            // 5. 记录账本流水
-            ledger_svc
-                .record(
-                    &payout.user_id,
-                    &updated.id,
-                    crate::models::LedgerType::Settle,
-                    "USDC",
-                    payout_amount,
-                    updated.available,
-                    &format!("market_{}", req.market_id),
-                    "market_settlement",
-                )
-                .await
-                .map_err(map_error)?;
+            // 4. 记录账本流水
+            tx.insert_ledger(&LedgerEntry {
+                id: uuid::Uuid::new_v4().to_string(),
+                user_id: user_id.clone(),
+                account_id: account.id.clone(),
+                ledger_type: LedgerType::Settle,
+                asset: "USDC".to_string(),
+                amount: *payout_amount,
+                balance_after,
+                reference_id: format!("market_{}", req.market_id),
+                reference_type: "market_settlement".to_string(),
+                created_at: now,
+            }).await.map_err(map_error)?;
 
             credited += 1;
         }
+
+        // Commit 事务
+        tx.commit().await.map_err(map_error)?;
 
         tracing::info!(
             "Market {} settled: credited {} users, winning outcome {}",

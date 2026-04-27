@@ -186,7 +186,7 @@ impl AccountService {
 
             let rows = self
                 .repo
-                .freeze_with_version(user_id, asset, amount, account.version)
+                .debit_available_with_version(user_id, asset, amount, account.version)
                 .await?;
 
             if rows == 1 {

@@ -33,6 +33,9 @@ pub enum PortfolioError {
 
     #[error("Database error: {0}")]
     Database(String),
+
+    #[error("Optimistic lock failed after retries: {0}")]
+    OptimisticLockFailed(String),
 }
 
 impl From<sqlx::Error> for PortfolioError {
