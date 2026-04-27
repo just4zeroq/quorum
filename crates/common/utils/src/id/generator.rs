@@ -10,6 +10,7 @@ pub trait IdPrefix: Clone + Copy + Send + Sync + std::fmt::Debug {
 
 /// 通用 ID 生成器
 pub struct IdGenerator<P: IdPrefix> {
+    #[allow(dead_code)]
     prefix: P,
     sequence: AtomicU64,
 }

@@ -5,7 +5,31 @@
       "Bash(./scripts/start-all.sh)",
       "Bash(choco install *)",
       "Bash(cargo cache *)",
-      "Bash(cargo clean *)"
+      "Bash(cargo clean *)",
+      "Bash(rtk git:*)",
+      "mcp__code-review-graph__build_or_update_graph_tool",
+      "mcp__code-review-graph__detect_changes_tool",
+      "mcp__code-review-graph__get_architecture_overview_tool",
+      "mcp__code-review-graph__list_communities_tool",
+      "mcp__code-review-graph__list_flows_tool",
+      "mcp__code-review-graph__get_bridge_nodes_tool",
+      "mcp__code-review-graph__get_hub_nodes_tool",
+      "mcp__code-review-graph__get_flow_tool",
+      "mcp__code-review-graph__get_knowledge_gaps_tool",
+      "mcp__code-review-graph__find_large_functions_tool",
+      "mcp__code-review-graph__get_community_tool",
+      "mcp__code-review-graph__list_graph_stats_tool",
+      "Bash(rtk read:*)",
+      "Bash(rtk ls:*)",
+      "Bash(rtk wc:*)",
+      "Bash(rtk grep:*)",
+      "Bash(git checkout:*)",
+      "Bash(rtk cargo:*)",
+      "Bash(rtk find:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "code-review-graph"
+  ]
 }

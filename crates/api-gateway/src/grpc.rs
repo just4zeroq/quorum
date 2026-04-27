@@ -12,6 +12,7 @@ pub struct GrpcClientManager {
     /// 每个服务名称对应的服务发现实例
     discoveries: HashMap<String, ServiceDiscovery>,
     /// etcd 端点列表
+    #[allow(dead_code)]
     etcd_endpoints: Vec<String>,
 }
 

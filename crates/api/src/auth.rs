@@ -312,7 +312,7 @@ pub mod auth_service_server {
         }
 
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
-            let path = req.uri().path().to_string();
+            let _path = req.uri().path().to_string();
             Box::pin(async move {
                 let mut response = http::Response::new(empty_body());
                 let headers = response.headers_mut();

@@ -21,6 +21,7 @@ pub struct ClientSession {
     pub id: Uuid,
     pub sender: tokio::sync::mpsc::Sender<Message>,
     pub auth: AuthStatus,
+    #[allow(dead_code)]
     pub connected_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -48,6 +49,7 @@ impl ClientSession {
     }
 
     /// 是否已认证
+    #[allow(dead_code)]
     pub fn is_authenticated(&self) -> bool {
         matches!(self.auth, AuthStatus::Authenticated { .. })
     }
@@ -148,10 +150,12 @@ impl SessionManager {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn len(&self) -> usize {
         self.sessions.read().await.len()
     }
 
+    #[allow(dead_code)]
     pub async fn is_empty(&self) -> bool {
         self.sessions.read().await.is_empty()
     }

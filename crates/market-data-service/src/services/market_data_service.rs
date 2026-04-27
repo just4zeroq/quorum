@@ -1,11 +1,7 @@
 //! Market Data Service Implementation
 
-use std::sync::Arc;
 use tonic::{Request, Response, Status};
-use rust_decimal::Decimal;
-use std::str::FromStr;
 
-use crate::models::{PredictionMarket, MarketOutcome, Kline, Trade, OrderBook, Market24hStats};
 use crate::repository::{MarketRepository, KlineRepository, TradeRepository};
 use api::market_data::{
     market_data_service_server::MarketDataService, GetMarketsRequest, GetMarketsResponse, MarketSummary, OutcomeSummary,

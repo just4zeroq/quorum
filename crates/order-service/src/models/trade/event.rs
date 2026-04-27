@@ -1,7 +1,6 @@
 //! Trade Event - 成交事件
 
 use serde::{Deserialize, Serialize};
-use super::model::Trade;
 
 /// 成交事件
 #[derive(Debug, Clone, Serialize, Deserialize)]

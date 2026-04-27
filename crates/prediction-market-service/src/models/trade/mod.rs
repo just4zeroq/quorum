@@ -6,4 +6,3 @@ pub mod shared;
 
 pub use model::{Trade, TradeSide, TradeQuery};
 pub use event::TradeEvent;
-pub use shared::*;

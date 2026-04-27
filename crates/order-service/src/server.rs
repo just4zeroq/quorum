@@ -90,7 +90,7 @@ impl OrderServer {
         ).await?;
 
         registry.register(30).await?;
-        let heartbeat_handle = registry.clone().start_heartbeat(30, 10);
+        let _heartbeat_handle = registry.clone().start_heartbeat(30, 10);
 
         tracing::info!("Order service registered to etcd");
 

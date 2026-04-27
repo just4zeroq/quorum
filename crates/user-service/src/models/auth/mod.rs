@@ -5,4 +5,3 @@ pub mod event;
 pub mod shared;
 
 pub use model::{AuthContext, JwtClaims, UserSession, ApiKey};
-pub use shared::*;

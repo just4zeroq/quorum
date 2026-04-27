@@ -6,7 +6,6 @@ use tonic::{Request, Response, Status};
 use api::user::user_service_server::UserService;
 use api::user::*;
 
-use crate::config::Config;
 use crate::repository::{UserRepository, UserRow};
 
 pub struct UserServiceImpl {

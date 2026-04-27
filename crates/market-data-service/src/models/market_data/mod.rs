@@ -6,4 +6,3 @@ pub mod shared;
 
 pub use model::{Market, Outcome, OrderBook, OrderBookLevel, Kline, KlineInterval};
 pub use event::MarketDataEvent;
-pub use shared::*;

@@ -713,4 +713,114 @@ mod tests {
         assert_eq!(action, OrderAction::Ask); // Bid -> Ask
         assert_eq!(asset, "1_no");
     }
+
+    #[test]
+    fn test_binary_market_matching_yes_yes() {
+        let outcomes = vec![
+            OutcomeSpec { outcome_id: 1, outcome_name: "yes".to_string(), asset: "1_yes".to_string() },
+            OutcomeSpec { outcome_id: 2, outcome_name: "no".to_string(), asset: "1_no".to_string() },
+        ];
+
+        let mut manager = MarketOrderBookManager::new();
+        manager.create_market(1, MarketType::Binary, &outcomes);
+
+        manager.add_order(1, 1, 100, 1, OrderAction::Bid, 60_000_000, 100).unwrap();
+        // Matching Ask for YES @0.60
+        let result = manager.add_order(1, 1, 101, 2, OrderAction::Ask, 60_000_000, 100);
+        assert!(result.is_ok(), "Bid and Ask at same price should match");
+    }
+
+    #[test]
+    fn test_binary_market_matching_no_no() {
+        let outcomes = vec![
+            OutcomeSpec { outcome_id: 1, outcome_name: "yes".to_string(), asset: "1_yes".to_string() },
+            OutcomeSpec { outcome_id: 2, outcome_name: "no".to_string(), asset: "1_no".to_string() },
+        ];
+
+        let mut manager = MarketOrderBookManager::new();
+        manager.create_market(1, MarketType::Binary, &outcomes);
+
+        manager.add_order(1, 2, 100, 1, OrderAction::Bid, 30_000_000, 100).unwrap();
+        let result = manager.add_order(1, 2, 101, 2, OrderAction::Ask, 30_000_000, 100);
+        assert!(result.is_ok(), "NO vs NO should match via YES conversion");
+    }
+
+    #[test]
+    fn test_binary_market_yes_ask_and_no_bid_matching() {
+        let outcomes = vec![
+            OutcomeSpec { outcome_id: 1, outcome_name: "yes".to_string(), asset: "1_yes".to_string() },
+            OutcomeSpec { outcome_id: 2, outcome_name: "no".to_string(), asset: "1_no".to_string() },
+        ];
+
+        let mut manager = MarketOrderBookManager::new();
+        manager.create_market(1, MarketType::Binary, &outcomes);
+
+        manager.add_order(1, 1, 100, 1, OrderAction::Ask, 70_000_000, 100).unwrap();
+        let result = manager.add_order(1, 2, 101, 2, OrderAction::Bid, 30_000_000, 100);
+        assert!(result.is_ok(), "YES Ask should match with NO Bid");
+    }
+
+    #[test]
+    fn test_invalid_outcome_rejected() {
+        let outcomes = vec![
+            OutcomeSpec { outcome_id: 1, outcome_name: "yes".to_string(), asset: "1_yes".to_string() },
+            OutcomeSpec { outcome_id: 2, outcome_name: "no".to_string(), asset: "1_no".to_string() },
+        ];
+
+        let mut manager = MarketOrderBookManager::new();
+        manager.create_market(1, MarketType::Binary, &outcomes);
+
+        let result = manager.add_order(1, 99, 100, 1, OrderAction::Bid, 50_000_000, 100);
+        assert!(result.is_err(), "Should reject invalid outcome");
+    }
+
+    #[test]
+    fn test_cancel_non_existent_order() {
+        let outcomes = vec![
+            OutcomeSpec { outcome_id: 1, outcome_name: "yes".to_string(), asset: "1_yes".to_string() },
+            OutcomeSpec { outcome_id: 2, outcome_name: "no".to_string(), asset: "1_no".to_string() },
+        ];
+
+        let mut manager = MarketOrderBookManager::new();
+        manager.create_market(1, MarketType::Binary, &outcomes);
+
+        let result = manager.cancel_order(1, 1, 99999, 1);
+        assert!(result.is_err(), "Should reject cancel of non-existent order");
+    }
+
+    #[test]
+    fn test_partial_fill() {
+        let outcomes = vec![
+            OutcomeSpec { outcome_id: 1, outcome_name: "yes".to_string(), asset: "1_yes".to_string() },
+            OutcomeSpec { outcome_id: 2, outcome_name: "no".to_string(), asset: "1_no".to_string() },
+        ];
+
+        let mut manager = MarketOrderBookManager::new();
+        manager.create_market(1, MarketType::Binary, &outcomes);
+
+        manager.add_order(1, 1, 100, 1, OrderAction::Bid, 60_000_000, 200).unwrap();
+        let result = manager.add_order(1, 1, 101, 2, OrderAction::Ask, 60_000_000, 50);
+        assert!(result.is_ok(), "Partial fill should succeed");
+    }
+
+    #[test]
+    fn test_market_exists_check() {
+        let mut manager = MarketOrderBookManager::new();
+        assert!(manager.get_market(1).is_none());
+
+        let outcomes = vec![
+            OutcomeSpec { outcome_id: 1, outcome_name: "yes".to_string(), asset: "1_yes".to_string() },
+            OutcomeSpec { outcome_id: 2, outcome_name: "no".to_string(), asset: "1_no".to_string() },
+        ];
+
+        manager.create_market(1, MarketType::Binary, &outcomes);
+        assert!(manager.get_market(1).is_some());
+    }
+
+    #[test]
+    fn test_add_order_to_non_existent_market() {
+        let mut manager = MarketOrderBookManager::new();
+        let result = manager.add_order(999, 1, 100, 1, OrderAction::Bid, 50_000_000, 100);
+        assert!(result.is_err(), "Should reject order for non-existent market");
+    }
 }

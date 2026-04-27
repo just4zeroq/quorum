@@ -7,8 +7,6 @@ use k256::ecdsa::{
     signature::Signer,
     Signature, SigningKey, VerifyingKey,
 };
-use k256::elliptic_curve::sec1::ToEncodedPoint;
-use sha3::Keccak256;
 use thiserror::Error;
 
 /// 钱包验证错误

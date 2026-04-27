@@ -6,4 +6,3 @@ pub mod shared;
 
 pub use model::{PredictionMarket, MarketOutcome, MarketStatus, Resolution};
 pub use event::PredictionMarketEvent;
-pub use shared::*;

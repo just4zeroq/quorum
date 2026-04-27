@@ -16,7 +16,9 @@ pub struct UserGrpcServer {
     config: Arc<Config>,
     user_service: Arc<UserServiceImpl>,
     auth_service: Option<Arc<AuthServiceImpl>>,
+    #[allow(dead_code)]
     registry: Option<ServiceRegistry>,
+    #[allow(dead_code)]
     heartbeat_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
@@ -64,7 +66,7 @@ impl UserGrpcServer {
         ).await?;
 
         registry.register(30).await?;
-        let heartbeat_handle = registry.clone().start_heartbeat(30, 10);
+        let _heartbeat_handle = registry.clone().start_heartbeat(30, 10);
 
         tracing::info!("User service registered to etcd");
         tracing::info!("User service gRPC server listening on {}", addr);

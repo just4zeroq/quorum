@@ -79,7 +79,7 @@ async fn proxy_websocket(
 #[handler]
 pub async fn ws_market_data_proxy(req: &mut Request, res: &mut Response) {
     tracing::info!("WebSocket upgrade request for /ws/market-data");
-    WebSocketUpgrade::new()
+    let _ = WebSocketUpgrade::new()
         .upgrade(req, res, |client_ws| async move {
             proxy_websocket(client_ws, "ws://127.0.0.1:50016").await;
         })
@@ -90,7 +90,7 @@ pub async fn ws_market_data_proxy(req: &mut Request, res: &mut Response) {
 #[handler]
 pub async fn ws_order_proxy(req: &mut Request, res: &mut Response) {
     tracing::info!("WebSocket upgrade request for /ws/order");
-    WebSocketUpgrade::new()
+    let _ = WebSocketUpgrade::new()
         .upgrade(req, res, |client_ws| async move {
             proxy_websocket(client_ws, "ws://127.0.0.1:50017").await;
         })
@@ -101,7 +101,7 @@ pub async fn ws_order_proxy(req: &mut Request, res: &mut Response) {
 #[handler]
 pub async fn ws_prediction_proxy(req: &mut Request, res: &mut Response) {
     tracing::info!("WebSocket upgrade request for /ws/prediction");
-    WebSocketUpgrade::new()
+    let _ = WebSocketUpgrade::new()
         .upgrade(req, res, |client_ws| async move {
             proxy_websocket(client_ws, "ws://127.0.0.1:50018").await;
         })

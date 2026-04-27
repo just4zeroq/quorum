@@ -55,6 +55,7 @@ pub struct ClientSession {
     pub id: Uuid,
     pub sender: tokio::sync::mpsc::Sender<Message>,
     pub subscriptions: HashMap<Channel, Vec<i64>>, // channel -> [market_ids]
+    #[allow(dead_code)]
     pub subscribed_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -140,10 +141,12 @@ impl SessionManager {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn len(&self) -> usize {
         self.sessions.read().await.len()
     }
 
+    #[allow(dead_code)]
     pub async fn is_empty(&self) -> bool {
         self.sessions.read().await.is_empty()
     }

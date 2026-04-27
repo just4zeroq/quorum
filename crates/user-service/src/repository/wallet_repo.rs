@@ -1,10 +1,5 @@
 //! Wallet Repository (placeholder)
 
-use async_trait::async_trait;
-use crate::models::wallet::{WalletAddress, WalletType, ChainType};
-use crate::models::session::UserSession;
-use crate::models::settings::UserSettings;
-use crate::models::risk::UserRisk;
 
 pub struct WalletRepository;
 

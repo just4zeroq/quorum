@@ -6,4 +6,3 @@ pub mod shared;
 
 pub use model::{User, UserStatus, UserSession};
 pub use event::UserEvent;
-pub use shared::*;

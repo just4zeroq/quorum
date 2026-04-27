@@ -12,7 +12,9 @@ pub struct TokenBucketState {
 /// Token bucket algorithm
 #[derive(Debug, Clone)]
 pub struct TokenBucket {
+    #[allow(dead_code)]
     capacity: f64,
+    #[allow(dead_code)]
     refill_rate: f64, // tokens per second
 }
 

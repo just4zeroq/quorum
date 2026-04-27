@@ -41,6 +41,7 @@ pub enum SubscribeMessage {
         market_id: Option<u64>,
         #[serde(rename = "market_ids")]
         market_ids: Option<Vec<u64>>,
+        #[allow(dead_code)]
         params: Option<SubscriptionParams>,
     },
     #[serde(rename = "unsubscribe")]
@@ -57,7 +58,9 @@ pub enum SubscribeMessage {
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct SubscriptionParams {
+    #[allow(dead_code)]
     pub interval: Option<String>,
+    #[allow(dead_code)]
     pub depth: Option<usize>,
 }
 
@@ -66,6 +69,7 @@ pub struct ClientSession {
     pub id: Uuid,
     pub sender: tokio::sync::mpsc::Sender<Message>,
     pub subscriptions: HashMap<Channel, Vec<u64>>,
+    #[allow(dead_code)]
     pub subscribed_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -151,10 +155,12 @@ impl SessionManager {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn len(&self) -> usize {
         self.sessions.read().await.len()
     }
 
+    #[allow(dead_code)]
     pub async fn is_empty(&self) -> bool {
         self.sessions.read().await.is_empty()
     }
@@ -163,5 +169,127 @@ impl SessionManager {
 impl Default for SessionManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::sync::mpsc;
+
+    fn create_test_session() -> ClientSession {
+        let (tx, _rx) = mpsc::channel(100);
+        ClientSession::new(tx)
+    }
+
+    #[tokio::test]
+    async fn test_session_manager_add_and_remove() {
+        let manager = SessionManager::new();
+        let session = create_test_session();
+        let id = manager.add(session).await;
+
+        assert!(manager.get(&id).await.is_some());
+        manager.remove(&id).await;
+        assert!(manager.get(&id).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_session_manager_get_all() {
+        let manager = SessionManager::new();
+        let session1 = create_test_session();
+        let session2 = create_test_session();
+        manager.add(session1).await;
+        manager.add(session2).await;
+
+        let all = manager.get_all().await;
+        assert_eq!(all.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_session_subscribe_unsubscribe() {
+        let mut session = create_test_session();
+        session.subscribe(Channel::OrderBook, vec![1, 2, 3]);
+
+        assert!(session.is_subscribed(&Channel::OrderBook, 1));
+        assert!(session.is_subscribed(&Channel::OrderBook, 3));
+        assert!(!session.is_subscribed(&Channel::OrderBook, 4));
+        assert!(!session.is_subscribed(&Channel::Kline, 1));
+
+        session.unsubscribe(&Channel::OrderBook, &[1]);
+        assert!(!session.is_subscribed(&Channel::OrderBook, 1));
+        assert!(session.is_subscribed(&Channel::OrderBook, 2));
+    }
+
+    #[tokio::test]
+    async fn test_session_subscribe_multiple_channels() {
+        let mut session = create_test_session();
+        session.subscribe(Channel::Kline, vec![1]);
+        session.subscribe(Channel::Trade, vec![1, 2]);
+
+        assert!(session.is_subscribed(&Channel::Kline, 1));
+        assert!(session.is_subscribed(&Channel::Trade, 2));
+        assert!(!session.is_subscribed(&Channel::OrderBook, 1));
+    }
+
+    #[tokio::test]
+    async fn test_channel_from_str() {
+        assert_eq!(Channel::from_str("orderbook"), Some(Channel::OrderBook));
+        assert_eq!(Channel::from_str("kline"), Some(Channel::Kline));
+        assert_eq!(Channel::from_str("trade"), Some(Channel::Trade));
+        assert_eq!(Channel::from_str("ticker"), Some(Channel::Ticker));
+        assert_eq!(Channel::from_str("unknown"), None);
+        assert_eq!(Channel::from_str("ORDERBOOK"), Some(Channel::OrderBook));
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_to_subscribed_market() {
+        let manager = SessionManager::new();
+        let (tx, mut rx) = mpsc::channel(100);
+
+        let mut session = ClientSession::new(tx);
+        session.subscribe(Channel::Trade, vec![42]);
+        manager.add(session).await;
+
+        let msg = "{\"price\": \"100\"}";
+        manager.broadcast_to_market(&Channel::Trade, 42, msg).await;
+
+        // Give broadcast time to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+        // Should have received the message
+        let received = rx.try_recv();
+        assert!(received.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_no_broadcast_to_unsubscribed_market() {
+        let manager = SessionManager::new();
+        let (tx, mut rx) = mpsc::channel(100);
+
+        let mut session = ClientSession::new(tx);
+        session.subscribe(Channel::Trade, vec![42]);
+        manager.add(session).await;
+
+        // Broadcast to a different market
+        manager.broadcast_to_market(&Channel::Trade, 99, "test").await;
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+        // Should NOT have received the message
+        let received = rx.try_recv();
+        assert!(received.is_err());
+    }
+
+    #[test]
+    fn test_session_send() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let (tx, mut rx) = mpsc::channel(100);
+            let session = ClientSession::new(tx);
+
+            session.send("hello").await.unwrap();
+            let received = rx.recv().await.unwrap();
+            assert_eq!(received.to_string(), "hello");
+        });
     }
 }

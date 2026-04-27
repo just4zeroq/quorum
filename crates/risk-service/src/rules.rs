@@ -113,3 +113,183 @@ fn check_order_quantity(ctx: &RiskCheckContext) -> Result<(), RiskError> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_decimal::Decimal;
+    use std::str::FromStr;
+
+    fn make_ctx(
+        user_id: &str,
+        side: &str,
+        order_type: &str,
+        price: &str,
+        quantity: &str,
+    ) -> RiskCheckContext {
+        RiskCheckContext {
+            user_id: user_id.to_string(),
+            market_id: 1,
+            outcome_id: 1,
+            side: side.to_string(),
+            order_type: order_type.to_string(),
+            price: Decimal::from_str(price).unwrap(),
+            quantity: Decimal::from_str(quantity).unwrap(),
+        }
+    }
+
+    // ==================== evaluate() ====================
+
+    #[test]
+    fn test_evaluate_all_valid() {
+        let ctx = make_ctx("usr_001", "YES", "limit", "0.5", "100");
+        let result = evaluate(&ctx);
+        assert!(result.accepted);
+        assert!(result.reason.is_empty());
+    }
+
+    #[test]
+    fn test_evaluate_invalid_price() {
+        let ctx = make_ctx("usr_001", "YES", "limit", "0", "100");
+        let result = evaluate(&ctx);
+        assert!(!result.accepted);
+        assert!(result.reason.contains("Price"));
+    }
+
+    #[test]
+    fn test_evaluate_invalid_quantity() {
+        let ctx = make_ctx("usr_001", "YES", "limit", "0.5", "0");
+        let result = evaluate(&ctx);
+        assert!(!result.accepted);
+        assert!(result.reason.contains("Quantity"));
+    }
+
+    #[test]
+    fn test_evaluate_empty_user_id() {
+        let ctx = make_ctx("", "YES", "limit", "0.5", "100");
+        let result = evaluate(&ctx);
+        assert!(!result.accepted);
+        assert!(result.reason.contains("user_id"));
+    }
+
+    #[test]
+    fn test_evaluate_invalid_side() {
+        let ctx = make_ctx("usr_001", "BUY", "limit", "0.5", "100");
+        let result = evaluate(&ctx);
+        assert!(!result.accepted);
+        assert!(result.reason.contains("side"));
+    }
+
+    // ==================== validate_basic() ====================
+
+    #[test]
+    fn test_validate_basic_empty_user_id() {
+        let ctx = make_ctx("", "YES", "limit", "0.5", "100");
+        let result = validate_basic(&ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_basic_empty_side() {
+        let ctx = make_ctx("usr_001", "", "limit", "0.5", "100");
+        let result = validate_basic(&ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_basic_side_yes_no() {
+        for side in &["YES", "yes", "NO", "no"] {
+            let ctx = make_ctx("usr_001", side, "limit", "0.5", "100");
+            assert!(validate_basic(&ctx).is_ok(), "side={} should be valid", side);
+        }
+    }
+
+    #[test]
+    fn test_validate_basic_side_invalid() {
+        for side in &["buy", "sell", "long", "short"] {
+            let ctx = make_ctx("usr_001", side, "limit", "0.5", "100");
+            assert!(validate_basic(&ctx).is_err(), "side={} should be invalid", side);
+        }
+    }
+
+    #[test]
+    fn test_validate_basic_order_type_valid() {
+        for ot in &["limit", "LIMIT", "market", "MARKET"] {
+            let ctx = make_ctx("usr_001", "YES", ot, "0.5", "100");
+            assert!(validate_basic(&ctx).is_ok(), "order_type={} should be valid", ot);
+        }
+    }
+
+    #[test]
+    fn test_validate_basic_order_type_invalid() {
+        for ot in &["stop", "stop_limit", ""] {
+            let ctx = make_ctx("usr_001", "YES", ot, "0.5", "100");
+            assert!(validate_basic(&ctx).is_err(), "order_type={} should be invalid", ot);
+        }
+    }
+
+    // ==================== check_prediction_market_price() ====================
+
+    #[test]
+    fn test_price_zero() {
+        let ctx = make_ctx("usr_001", "YES", "limit", "0", "100");
+        let result = check_prediction_market_price(&ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_price_negative() {
+        let ctx = make_ctx("usr_001", "YES", "limit", "-0.5", "100");
+        let result = check_prediction_market_price(&ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_price_equal_to_one() {
+        let ctx = make_ctx("usr_001", "YES", "limit", "1", "100");
+        let result = check_prediction_market_price(&ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_price_above_one() {
+        let ctx = make_ctx("usr_001", "YES", "limit", "1.5", "100");
+        let result = check_prediction_market_price(&ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_price_valid_range() {
+        for p in &["0.01", "0.5", "0.99"] {
+            let ctx = make_ctx("usr_001", "YES", "limit", p, "100");
+            assert!(
+                check_prediction_market_price(&ctx).is_ok(),
+                "price={} should be valid",
+                p
+            );
+        }
+    }
+
+    // ==================== check_order_quantity() ====================
+
+    #[test]
+    fn test_quantity_zero() {
+        let ctx = make_ctx("usr_001", "YES", "limit", "0.5", "0");
+        let result = check_order_quantity(&ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_quantity_negative() {
+        let ctx = make_ctx("usr_001", "YES", "limit", "0.5", "-10");
+        let result = check_order_quantity(&ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_quantity_positive() {
+        let ctx = make_ctx("usr_001", "YES", "limit", "0.5", "100");
+        let result = check_order_quantity(&ctx);
+        assert!(result.is_ok());
+    }
+}

@@ -73,6 +73,7 @@ impl ServiceDiscovery {
 }
 
 pub struct ServiceWatchStream {
+    #[allow(dead_code)]
     service_name: String,
     client: Arc<RwLock<Client>>,
     prefix: String,

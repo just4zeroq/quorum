@@ -6,4 +6,3 @@ pub mod shared;
 
 pub use model::{Order, OrderStatus, OrderType, OrderSide, OrderQuery, OrderEventRecord};
 pub use event::OrderEvent;
-pub use shared::*;
